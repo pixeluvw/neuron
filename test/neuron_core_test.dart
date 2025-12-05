@@ -156,7 +156,7 @@ void main() {
       final signal = AsyncSignal<int>(null);
 
       await signal.execute(() async {
-        await Future.delayed(Duration(milliseconds: 10));
+        await Future.delayed(const Duration(milliseconds: 10));
         return 42;
       });
 

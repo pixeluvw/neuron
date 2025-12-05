@@ -134,7 +134,7 @@
 /// - `Neuron.back()` - Pop page
 /// - `Neuron.toNamed(route)` - Named routes
 ///
-library neuron;
+library;
 
 // Core - Service locator, controller, and base slots
 export 'src/neuron_core.dart';

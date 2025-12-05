@@ -75,21 +75,21 @@ class SignalUtils {
     List<NeuronAtom> dependencies, {
     Duration? ttl,
   }) {
-    T? _cache;
-    DateTime? _cacheTime;
+    T? cache;
+    DateTime? cacheTime;
 
     return Computed<T>(
       () {
         final now = DateTime.now();
-        if (_cache != null &&
-            _cacheTime != null &&
+        if (cache != null &&
+            cacheTime != null &&
             ttl != null &&
-            now.difference(_cacheTime!) < ttl) {
-          return _cache as T;
+            now.difference(cacheTime!) < ttl) {
+          return cache as T;
         }
-        _cache = compute();
-        _cacheTime = now;
-        return _cache as T;
+        cache = compute();
+        cacheTime = now;
+        return cache as T;
       },
       dependencies,
     );

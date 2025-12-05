@@ -833,6 +833,7 @@ class IntervalSignal<T> extends Signal<T> {
   }
 
   /// Reset the interval timer.
+  @override
   void reset() {
     _tick = 0;
     emit(generator(0));
@@ -873,8 +874,7 @@ class IntervalSignal<T> extends Signal<T> {
 /// }
 /// ```
 class ToggleSignal extends Signal<bool> {
-  ToggleSignal(bool initial, {String? debugLabel})
-      : super(initial, debugLabel: debugLabel);
+  ToggleSignal(super.initial, {super.debugLabel});
 
   /// Toggle the boolean value.
   void toggle() => emit(!val);
@@ -921,12 +921,12 @@ class CounterSignal extends Signal<num> {
   final num step;
 
   CounterSignal(
-    num initial, {
+    super.initial, {
     this.min,
     this.max,
     this.step = 1,
-    String? debugLabel,
-  }) : super(initial, debugLabel: debugLabel);
+    super.debugLabel,
+  });
 
   /// Increment by step.
   void increment([num? customStep]) {
@@ -949,6 +949,7 @@ class CounterSignal extends Signal<num> {
   }
 
   /// Reset to initial value or custom value.
+  @override
   void reset([num? value]) {
     emit(value ?? 0);
   }

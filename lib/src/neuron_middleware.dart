@@ -37,14 +37,14 @@ class MiddlewareSignal<T> extends Signal<T> {
   final List<SignalMiddleware<T>> middlewares;
 
   MiddlewareSignal(
-    T initial, {
+    super.initial, {
     required this.middlewares,
-    String? debugLabel,
+    super.debugLabel,
     super.equals,
     super.guard,
     super.onListen,
     super.onCancel,
-  }) : super(initial, debugLabel: debugLabel);
+  });
 
   @override
   void emit(T val) {

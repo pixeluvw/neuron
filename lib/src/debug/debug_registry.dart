@@ -189,7 +189,7 @@ class NeuronDebugRegistry {
 
   void _attachListener(_NotifierRecord entry) {
     if (_listeners.containsKey(entry.notifier)) return;
-    final listener = () {
+    void listener() {
       entry.lastUpdated = DateTime.now();
       final event = NeuronDebugEvent(
         kind: entry.kind == 'computed'
@@ -205,7 +205,7 @@ class NeuronDebugRegistry {
         },
       );
       _pushEvent(event);
-    };
+    }
 
     _listeners[entry.notifier] = listener;
     entry.notifier.addListener(listener);

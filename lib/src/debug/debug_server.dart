@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -41,7 +42,7 @@ class NeuronDebugServer {
     NeuronDebugRegistry.instance.enable();
 
     final router = NeuronDebugRouter(NeuronDebugRegistry.instance);
-    final handler = Pipeline()
+    final handler = const Pipeline()
         .addMiddleware(logRequests())
         .addMiddleware(_cors())
         .addHandler(router.handler);

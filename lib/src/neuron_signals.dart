@@ -4,9 +4,9 @@
 // Inspired by Qt's Signals & Slots pattern
 //
 // Includes:
-// - Signal<T> - Core reactive value container
-// - AsyncSignal<T> - Async operation handling with loading/error states
-// - Computed<T> - Derived signals that auto-update
+// - `Signal<T>` - Core reactive value container
+// - `AsyncSignal<T>` - Async operation handling with loading/error states
+// - `Computed<T>` - Derived signals that auto-update
 
 import 'dart:async';
 import 'dart:ui';
@@ -17,7 +17,7 @@ import 'neuron_atom.dart';
 // This file is imported by neuron_core.dart
 
 /// ============================================================================
-/// SIGNAL<T> - CORE REACTIVE VALUE CONTAINER
+/// `SIGNAL<T>` - CORE REACTIVE VALUE CONTAINER
 /// ============================================================================
 
 /// A reactive value that notifies listeners when changed.
@@ -139,7 +139,7 @@ class Signal<T> extends NeuronAtom<T> {
 }
 
 /// ============================================================================
-/// ASYNC SIGNAL<T> - ASYNC STATE MANAGEMENT
+/// `ASYNC SIGNAL<T>` - ASYNC STATE MANAGEMENT
 /// ============================================================================
 
 /// Async state wrapper for handling loading, data, and error states.
@@ -258,7 +258,7 @@ class AsyncSignal<T> extends NeuronAtom<AsyncSnapshot<T>> {
 }
 
 /// ============================================================================
-/// COMPUTED<T> - DERIVED REACTIVE VALUES
+/// `COMPUTED<T>` - DERIVED REACTIVE VALUES
 /// ============================================================================
 
 /// A derived signal that automatically recalculates when dependencies change.

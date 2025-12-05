@@ -36,14 +36,14 @@ class PersistentSignal<T> extends Signal<T> {
   bool _isInitialized = false;
 
   PersistentSignal(
-    T initial, {
+    super.initial, {
     required this.persistence,
-    String? debugLabel,
+    super.debugLabel,
     super.equals,
     super.guard,
     super.onListen,
     super.onCancel,
-  }) : super(initial, debugLabel: debugLabel) {
+  }) {
     _loadFromPersistence();
   }
 

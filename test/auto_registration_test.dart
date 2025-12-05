@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 // Quick test to verify auto-registration works
 import 'package:neuron/neuron.dart';
 

@@ -92,7 +92,7 @@ void main() {
       final signal = MiddlewareSignal<int>(
         0,
         middlewares: [
-          RateLimitMiddleware<int>(minInterval: Duration(milliseconds: 100)),
+          RateLimitMiddleware<int>(minInterval: const Duration(milliseconds: 100)),
         ],
       );
 
@@ -102,7 +102,7 @@ void main() {
       signal.emit(2); // Too fast, should be rejected
       expect(signal.val, 1);
 
-      await Future.delayed(Duration(milliseconds: 110));
+      await Future.delayed(const Duration(milliseconds: 110));
 
       signal.emit(3); // Enough time passed
       expect(signal.val, 3);

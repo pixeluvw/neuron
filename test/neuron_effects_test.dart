@@ -81,7 +81,7 @@ void main() {
       final action = SignalAction<String>(
         name: 'test',
         execute: () async {
-          await Future.delayed(Duration(milliseconds: 10));
+          await Future.delayed(const Duration(milliseconds: 10));
           return 'result';
         },
       );
@@ -142,7 +142,7 @@ void main() {
         name: 'test',
         execute: () async {
           executionCount++;
-          await Future.delayed(Duration(milliseconds: 50));
+          await Future.delayed(const Duration(milliseconds: 50));
           return 1;
         },
       );

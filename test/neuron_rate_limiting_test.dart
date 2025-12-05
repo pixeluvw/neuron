@@ -7,7 +7,7 @@ void main() {
       final source = Signal<int>(0);
       final signal = DebouncedSignal<int>(
         source,
-        Duration(milliseconds: 100),
+        const Duration(milliseconds: 100),
       );
 
       var emitCount = 0;
@@ -24,7 +24,7 @@ void main() {
       expect(emitCount, 0);
 
       // Wait for debounce duration
-      await Future.delayed(Duration(milliseconds: 150));
+      await Future.delayed(const Duration(milliseconds: 150));
 
       // Should have emitted only once with final value
       expect(emitCount, 1);
@@ -35,16 +35,16 @@ void main() {
       final source = Signal<String>('initial');
       final signal = DebouncedSignal<String>(
         source,
-        Duration(milliseconds: 50),
+        const Duration(milliseconds: 50),
       );
 
       source.emit('first');
-      await Future.delayed(Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 60));
 
       expect(signal.val, 'first');
 
       source.emit('second');
-      await Future.delayed(Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 60));
 
       expect(signal.val, 'second');
     });
@@ -55,7 +55,7 @@ void main() {
       final source = Signal<int>(0);
       final signal = ThrottledSignal<int>(
         source,
-        Duration(milliseconds: 100),
+        const Duration(milliseconds: 100),
       );
 
       var emitCount = 0;
@@ -65,7 +65,7 @@ void main() {
 
       // First emission should go through immediately
       source.emit(1);
-      await Future.delayed(Duration(milliseconds: 10));
+      await Future.delayed(const Duration(milliseconds: 10));
       expect(emitCount, 1);
 
       // Subsequent emissions should be throttled
@@ -74,11 +74,11 @@ void main() {
       expect(emitCount, 1); // Still 1
 
       // Wait for throttle duration
-      await Future.delayed(Duration(milliseconds: 110));
+      await Future.delayed(const Duration(milliseconds: 110));
 
       // Next emission should go through
       source.emit(4);
-      await Future.delayed(Duration(milliseconds: 10));
+      await Future.delayed(const Duration(milliseconds: 10));
       expect(emitCount, 2);
     });
   });

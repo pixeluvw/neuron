@@ -6,7 +6,7 @@
 /// - Rich transition library (20+ motion presets + custom builders)
 /// - Reactive state (current route, history, canGoBack, isNavigating)
 /// - Elegant, context-less API via `NeuronNavigator.instance`
-library neuron_navigation;
+library;
 
 import 'dart:async';
 import 'dart:math';
@@ -309,10 +309,10 @@ class NeuronRouteScope extends InheritedWidget {
   final NeuronRouteState state;
 
   const NeuronRouteScope({
-    Key? key,
+    super.key,
     required this.state,
-    required Widget child,
-  }) : super(key: key, child: child);
+    required super.child,
+  });
 
   static NeuronRouteState? of(BuildContext context) {
     return context
@@ -615,13 +615,13 @@ class NeuronNavigator extends NeuronController {
     NeuronRouteState state, {
     Object? arguments,
   }) {
-    final builder = (BuildContext context) {
+    NeuronRouteScope builder(BuildContext context) {
       final page = route.builder(context, state.params);
       return NeuronRouteScope(
         state: state,
         child: page,
       );
-    };
+    }
 
     final settings =
         RouteSettings(name: state.name, arguments: arguments ?? state);
@@ -761,7 +761,7 @@ class NeuronNavigatorWidget extends StatelessWidget {
   final bool debugShowCheckedModeBanner;
 
   const NeuronNavigatorWidget({
-    Key? key,
+    super.key,
     required this.routes,
     required this.initialRoute,
     this.middlewares = const [],
@@ -770,7 +770,7 @@ class NeuronNavigatorWidget extends StatelessWidget {
     this.darkTheme,
     this.themeMode,
     this.debugShowCheckedModeBanner = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

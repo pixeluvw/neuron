@@ -54,6 +54,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean, predictable API
 - Type-safe and compile-time checked
 
+## [1.1.3] - 2025-12-05
+
+### Maintenance
+- Updated dependencies to latest versions (`device_info_plus` ^12.3.0, `flutter_lints` ^6.0.0).
+- Added `analysis_options.yaml` and resolved all static analysis issues to improve pub.dev score.
+
 ## [1.1.2] - 2025-12-05
 
 ### Metadata

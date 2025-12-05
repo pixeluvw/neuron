@@ -123,6 +123,7 @@ class NeuronAtom<T> implements Disposable {
           listener();
         }
       } catch (e) {
+        // ignore: avoid_print
         print('Error in NeuronAtom listener: $e');
       }
     }

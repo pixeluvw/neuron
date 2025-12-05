@@ -953,11 +953,13 @@ class _SpringSlotState<T extends num> extends State<SpringSlot<T>>
             0 / 1000000);
 
     double clampedValue = newValue;
-    if (widget.clampMin != null)
+    if (widget.clampMin != null) {
       clampedValue = clampedValue.clamp(widget.clampMin!, double.infinity);
-    if (widget.clampMax != null)
+    }
+    if (widget.clampMax != null) {
       clampedValue =
           clampedValue.clamp(double.negativeInfinity, widget.clampMax!);
+    }
 
     if (_currentValue != clampedValue) {
       setState(() {
