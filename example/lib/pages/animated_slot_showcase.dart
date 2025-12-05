@@ -401,50 +401,52 @@ AnimatedSlot<int>(
             slideOffset: const Offset(0, 0.3),
             scaleBegin: 0.9,
             scaleEnd: 1.0,
-            to: (context, value) => Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    value < 0
-                        ? Colors.blue
-                        : (value > 25 ? Colors.red : Colors.green),
-                    value < 0
-                        ? Colors.lightBlue
-                        : (value > 25 ? Colors.orange : Colors.teal),
+            to: (context, value) {
+              // Temperature categories
+              final (Color startColor, Color endColor, String label) =
+                  switch (value) {
+                <= 0 => (
+                    Colors.cyan.shade700,
+                    Colors.cyan.shade400,
+                    '🥶 Freezing'
+                  ),
+                < 15 => (Colors.blue, Colors.lightBlue, '❄️ Cold'),
+                <= 25 => (Colors.green, Colors.teal, '✨ Comfortable'),
+                _ => (Colors.red, Colors.orange, '🔥 Hot'),
+              };
+
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [startColor, endColor]),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: startColor.withAlpha(100),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: (value < 0
-                            ? Colors.blue
-                            : (value > 25 ? Colors.red : Colors.green))
-                        .withAlpha(100),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    '$value°C',
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                child: Column(
+                  children: [
+                    Text(
+                      '$value°C',
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  Text(
-                    value < 0
-                        ? '❄️ Freezing'
-                        : (value > 25 ? '🔥 Hot' : '✨ Comfortable'),
-                    style: const TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
+                    Text(
+                      label,
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           controls: Slot(
             connect: temperature,
