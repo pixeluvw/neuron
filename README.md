@@ -8,6 +8,7 @@ Neuron is a powerful, elegant reactive state management solution built around th
 [![Tests](https://img.shields.io/badge/tests-73%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](test/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![style: flutter_lints](https://img.shields.io/badge/style-flutter__lints-blue)](https://pub.dev/packages/flutter_lints)
 
 ## 🧠 What is Neuron?
 
@@ -74,7 +75,7 @@ Or add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  neuron: ^1.1.2
+  neuron: ^1.1.3
 ```
 
 Then run:
