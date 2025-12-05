@@ -63,13 +63,17 @@ This pattern simplifies state management while providing fine-grained reactivity
 
 ## 📦 Installation
 
-Add to your `pubspec.yaml`:
+Run this command:
+
+```bash
+flutter pub add neuron
+```
+
+Or add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  neuron:
-    git:
-      url: https://github.com/pixeluvw/neuron
+  neuron: ^1.1.1
 ```
 
 Then run:
