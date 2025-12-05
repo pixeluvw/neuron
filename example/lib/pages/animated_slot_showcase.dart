@@ -1212,38 +1212,46 @@ AnimatedSlot<bool>(
 )''',
           demo: AnimatedSlot<bool>(
             connect: hasNotification,
-            effect: SlotEffect.fadeScale,
+            effect: SlotEffect.fade,
             duration: const Duration(milliseconds: 300),
-            curve: Curves.elasticOut,
-            scaleBegin: 0.0,
-            scaleEnd: 1.0,
-            to: (context, hasNotif) => Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(16),
+            curve: Curves.easeOut,
+            to: (context, hasNotif) => Padding(
+              padding: const EdgeInsets.all(8),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.notifications, size: 40),
                   ),
-                  child: const Icon(Icons.notifications, size: 40),
-                ),
-                if (hasNotif)
-                  const Positioned(
-                    right: -6,
-                    top: -6,
-                    child: _PulsingBadge(),
-                  ),
-              ],
+                  if (hasNotif)
+                    const Positioned(
+                      right: -6,
+                      top: -6,
+                      child: _PulsingBadge(),
+                    ),
+                ],
+              ),
             ),
           ),
-          controls: ElevatedButton.icon(
-            onPressed: () => hasNotification.value = !hasNotification.value,
-            icon: Icon(hasNotification.value
-                ? Icons.notifications_off
-                : Icons.notifications_active),
-            label: const Text('Toggle Notification'),
+          controls: AnimatedSlot<bool>(
+            connect: hasNotification,
+            effect: SlotEffect.fadeScale,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack,
+            scaleBegin: 0.9,
+            scaleEnd: 1.0,
+            to: (context, value) => ElevatedButton.icon(
+              onPressed: () => hasNotification.value = !hasNotification.value,
+              icon: Icon(
+                  value ? Icons.notifications_off : Icons.notifications_active),
+              label: const Text('Toggle Notification'),
+            ),
           ),
         ),
 
@@ -1308,13 +1316,21 @@ AnimatedSlot<bool>(
               ),
             ),
           ),
-          controls: ElevatedButton.icon(
-            onPressed: () => isLive.value = !isLive.value,
-            icon: Icon(isLive.value ? Icons.stop_circle : Icons.play_circle),
-            label: Text(isLive.value ? 'Go Offline' : 'Go Live'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isLive.value ? Colors.grey : Colors.red,
-              foregroundColor: Colors.white,
+          controls: AnimatedSlot<bool>(
+            connect: isLive,
+            effect: SlotEffect.fadeScale,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack,
+            scaleBegin: 0.9,
+            scaleEnd: 1.0,
+            to: (context, live) => ElevatedButton.icon(
+              onPressed: () => isLive.value = !isLive.value,
+              icon: Icon(live ? Icons.stop_circle : Icons.play_circle),
+              label: Text(live ? 'Go Offline' : 'Go Live'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: live ? Colors.grey : Colors.red,
+                foregroundColor: Colors.white,
+              ),
             ),
           ),
         ),
@@ -1409,35 +1425,35 @@ class _PulsingBadgeState extends State<_PulsingBadge>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Container(
-          width: 24 + 4 * _controller.value,
-          height: 24 + 4 * _controller.value,
-          decoration: BoxDecoration(
-            color: Colors.red,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withAlpha((120 * _controller.value).toInt()),
-                blurRadius: 10 * _controller.value,
-                spreadRadius: 3 * _controller.value,
-              ),
-            ],
-          ),
-          child: const Center(
-            child: Text(
-              '3',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
+    return ScaleTransition(
+      scale: Tween<double>(begin: 1.0, end: 1.15).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      ),
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: Colors.red,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withAlpha(120),
+              blurRadius: 8,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Text(
+            '3',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

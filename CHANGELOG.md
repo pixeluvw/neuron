@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean, predictable API
 - Type-safe and compile-time checked
 
+## [1.1.4] - 2025-12-05
+
+### Changed
+- Changed `AnimatedSlot` default `clipBehavior` to `false` to prevent clipping of shadows and overflowing content by default.
+
 ## [1.1.3] - 2025-12-05
 
 ### Maintenance

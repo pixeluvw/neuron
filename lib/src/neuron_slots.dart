@@ -206,7 +206,7 @@ class AnimatedSlot<T> extends StatefulWidget {
     this.slideOffset = const Offset(0, 0.3),
     this.rotationTurns = 0.25,
     this.blurSigma = 5.0,
-    this.clipBehavior = true,
+    this.clipBehavior = false,
   });
 
   @override
