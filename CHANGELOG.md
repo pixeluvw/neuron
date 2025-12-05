@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean, predictable API
 - Type-safe and compile-time checked
 
+## [1.1.1] - 2025-12-05
+
+### Documentation
+- Added comprehensive "Widget Guide" to README.md covering `Slot`, `AsyncSlot`, `MultiSlot`, `ConditionalSlot`, and `AnimatedSlot`.
+
 ## [1.1.0] - 2025-12-05
 
 ### Added
