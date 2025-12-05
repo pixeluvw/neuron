@@ -2436,12 +2436,22 @@ class _AnimatedFormSlotState<T> extends State<AnimatedFormSlot<T>>
 /// )
 /// ```
 class AnimatedErrorMessage extends StatelessWidget {
+  /// The signal containing the error message (or null if no error).
   final Signal<String?> connect;
+
+  /// Builder function to display the error message.
   final Widget Function(BuildContext context, String error) to;
+
+  /// The animation effect to use when showing/hiding the error.
   final FormAnimationEffect effect;
+
+  /// The duration of the animation.
   final Duration duration;
+
+  /// The curve of the animation.
   final Curve curve;
 
+  /// Creates an animated error message widget.
   const AnimatedErrorMessage({
     super.key,
     required this.connect,

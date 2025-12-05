@@ -252,12 +252,17 @@ class CoalesceMiddleware<T> extends SignalMiddleware<T?> {
 }
 
 /// Aggregate middleware - combine multiple middlewares.
+///
+/// Applies a list of middlewares in sequence.
 class AggregateMiddleware<T> extends SignalMiddleware<T> {
+  /// The list of middlewares to apply in order.
   final List<SignalMiddleware<T>> middlewares;
 
+  /// Creates an aggregate middleware with the given list of [middlewares].
   AggregateMiddleware(this.middlewares);
 
   @override
+  /// Processes the value through each middleware in the list sequentially.
   T process(T oldValue, T newValue) {
     T result = newValue;
     for (final middleware in middlewares) {
