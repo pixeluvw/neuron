@@ -28,7 +28,7 @@ Slot<int>(
 )
 ```
 
-This pattern eliminates `setState()`, `StreamBuilder`, and `StatefulWidget` boilerplate while providing fine-grained reactivity.
+This pattern simplifies state management while providing fine-grained reactivity.
 
 ## ✨ Features
 
@@ -41,7 +41,7 @@ This pattern eliminates `setState()`, `StreamBuilder`, and `StatefulWidget` boil
 
 ### 🚀 Developer Experience
 - **StatelessWidget Only**: Write clean functional components
-- **Zero Boilerplate**: No `setState()`, no `StreamBuilder`, no `Consumer` wrappers
+- **Zero Boilerplate**: Minimal code required to connect state to UI
 - **Service Locator Built-in**: Controller lifecycle managed automatically
 - **Hot Reload Friendly**: Preserves state during development
 - **Intuitive API**: Learn once, productive immediately
@@ -69,7 +69,7 @@ Add to your `pubspec.yaml`:
 dependencies:
   neuron:
     git:
-      url: https://github.com/pixeluvw/Neuron-Framework
+      url: https://github.com/pixeluvw/neuron
 ```
 
 Then run:
@@ -99,6 +99,137 @@ class CounterController extends NeuronController {
 }
 ```
 
+## 📚 Widget Guide
+
+Neuron provides a rich set of widgets to handle various reactive scenarios.
+
+### 1. Slot
+The fundamental building block. Rebuilds when the connected signal changes.
+
+```dart
+Slot<int>(
+  connect: counter,
+  to: (context, value) => Text('Count: $value'),
+)
+```
+
+### 2. AsyncSlot
+Specialized slot for `AsyncSignal`s. Handles loading, error, and data states automatically.
+
+```dart
+AsyncSlot<User>(
+  connect: userSignal,
+  onLoading: (context) => CircularProgressIndicator(),
+  onError: (context, error) => Text('Error: $error'),
+  onData: (context, user) => UserProfile(user),
+)
+```
+
+### 3. MultiSlot
+Connect to multiple signals and rebuild when any of them changes.
+
+```dart
+MultiSlot2<String, int>(
+  connect1: nameSignal,
+  connect2: ageSignal,
+  to: (context, name, age) => Text('$name is $age years old'),
+)
+```
+
+### 4. ConditionalSlot
+Conditionally renders widgets based on a boolean signal.
+
+```dart
+ConditionalSlot(
+  connect: isLoggedIn,
+  ifTrue: (context) => Dashboard(),
+  ifFalse: (context) => LoginPage(),
+)
+```
+
+### 5. AnimatedSlot
+Automatically animates value changes with built-in effects.
+
+```dart
+AnimatedSlot<int>(
+  connect: counter,
+  effect: SlotEffect.fade | SlotEffect.scale,
+  curve: Curves.elasticOut,
+  to: (context, value) => Text(
+    '$value',
+    style: TextStyle(fontSize: 32),
+  ),
+)
+```
+
+## 🎭 Animations & Effects
+
+Neuron includes a suite of powerful animation widgets to bring your UI to life.
+
+### AnimatedValueSlot
+Smoothly interpolates between numeric values.
+
+```dart
+AnimatedValueSlot<double>(
+  connect: progressSignal,
+  duration: Duration(seconds: 1),
+  format: (val) => '${(val * 100).toStringAsFixed(0)}%',
+  to: (context, formatted) => Text(formatted),
+)
+```
+
+### SpringSlot
+Physics-based spring animations for natural motion.
+
+```dart
+SpringSlot<double>(
+  connect: scaleSignal,
+  spring: SpringConfig.bouncy,
+  to: (context, scale) => Transform.scale(
+    scale: scale,
+    child: Card(),
+  ),
+)
+```
+
+### GestureAnimatedSlot
+Combines gestures with press animations.
+
+```dart
+GestureAnimatedSlot<bool>(
+  connect: isLikedSignal,
+  onTap: () => isLikedSignal.emit(!isLikedSignal.val),
+  pressedScale: 0.8,
+  to: (context, isLiked) => Icon(
+    isLiked ? Icons.favorite : Icons.favorite_border,
+    color: isLiked ? Colors.red : Colors.grey,
+  ),
+)
+```
+
+### PulseSlot
+Continuous pulsing animation for attention-grabbing elements.
+
+```dart
+PulseSlot<int>(
+  connect: notificationCount,
+  when: (count) => count > 0,
+  to: (context, count) => Badge(label: Text('$count')),
+)
+```
+
+### ShimmerSlot
+Loading shimmer effect for async states.
+
+```dart
+ShimmerSlot<User?>(
+  connect: userSignal,
+  when: (user) => user == null,
+  shimmer: Container(width: 100, height: 20, color: Colors.grey),
+  to: (context, user) => Text(user!.name),
+)
+```
+
 ### 2. Use in StatelessWidget
 
 ```dart
@@ -116,6 +247,109 @@ class CounterPage extends StatelessWidget {
     );
   }
 }
+```
+
+## 🧭 Navigation
+
+Neuron provides a complete navigation system that works without `BuildContext`.
+
+### Setup
+
+Add `Neuron.navigatorKey` to your `MaterialApp`:
+
+```dart
+MaterialApp(
+  navigatorKey: Neuron.navigatorKey,
+  home: HomePage(),
+);
+// OR use NeuronApp wrapper
+NeuronApp(
+  home: HomePage(),
+)
+```
+
+### Basic Navigation
+
+```dart
+// Go to a new page
+Neuron.to(NextPage());
+
+// Go back
+Neuron.back();
+
+// Replace current page
+Neuron.off(LoginPage());
+
+// Remove all previous pages
+Neuron.offAll(DashboardPage());
+```
+
+### Named Routes
+
+```dart
+// Define routes
+NeuronApp(
+  initialRoute: '/',
+  routes: [
+    NeuronRoute(
+      name: '/',
+      path: '/',
+      builder: (context, params) => HomePage(),
+    ),
+    NeuronRoute(
+      name: '/details',
+      path: '/details/:id',
+      builder: (context, params) => DetailsPage(id: params['id']),
+    ),
+  ],
+);
+
+// Navigate
+Neuron.toNamed('/details/123');
+```
+
+### Transitions
+
+Neuron supports beautiful page transitions out of the box.
+
+```dart
+Neuron.to(
+  NextPage(),
+  transition: NeuronPageTransition.slideUp,
+  duration: Duration(milliseconds: 400),
+);
+```
+
+## ⚡ Effects & Reactions
+
+React to signal changes without widgets.
+
+### SignalReaction
+
+Execute code when a signal changes.
+
+```dart
+final reaction = SignalReaction<int>(
+  count,
+  (value) {
+    print('Count changed to $value');
+    if (value > 10) showAlert();
+  },
+);
+
+// Clean up
+reaction.dispose();
+```
+
+### SignalTransaction
+
+Batch multiple updates to notify listeners only once.
+
+```dart
+SignalTransaction()
+  .update(firstName, 'John')
+  .update(lastName, 'Doe')
+  .commit();
 ```
 
 ### 3. Run Your App
@@ -194,6 +428,18 @@ final search = Signal<String>('');
 final debounced = DebouncedSignal(search, Duration(milliseconds: 300));
 ```
 
+### Undo/Redo
+
+`UndoableSignal` tracks history and supports undo/redo operations.
+
+```dart
+final text = UndoableSignal<String>('');
+text.emit('Hello');
+text.emit('World');
+text.undo(); // 'Hello'
+text.redo(); // 'World'
+```
+
 ### Middleware
 
 Intercept signal emissions to transform, validate, or control value flow.
@@ -204,9 +450,21 @@ final age = MiddlewareSignal<int>(
   middlewares: [
     ClampMiddleware(min: 0, max: 120),
     LoggingMiddleware(label: 'age'),
+    HistoryMiddleware(limit: 10), // Track history
   ],
 );
 ```
+
+**Available Middlewares:**
+- `LoggingMiddleware`: Log value changes.
+- `ValidationMiddleware`: Prevent invalid values.
+- `ClampMiddleware`: Constrain numeric values.
+- `TransformMiddleware`: Modify values before emit.
+- `SanitizationMiddleware`: Clean string values.
+- `RateLimitMiddleware`: Limit update frequency.
+- `ConditionalMiddleware`: Update only if condition met.
+- `CoalesceMiddleware`: Handle nulls.
+- `AggregateMiddleware`: Combine multiple middlewares.
 
 ### Persistence
 
@@ -217,6 +475,29 @@ final theme = PersistentSignal<String>(
   'light',
   persistence: SimplePersistence(key: 'theme', ...),
 );
+```
+
+**Persistence Adapters:**
+- `SimplePersistence`: String-based storage (e.g., SharedPreferences).
+- `JsonPersistence`: Store complex objects as JSON.
+- `BinaryPersistence`: Efficient binary storage.
+- `EncryptedPersistence`: Secure storage with encryption.
+- `VersionedPersistence`: Handle data migration across versions.
+- `MemoryPersistence`: Ephemeral storage for testing.
+
+### Utilities
+
+Helper methods for common tasks.
+
+```dart
+// Create from Stream
+final streamSignal = SignalUtils.fromStream(myStream, initialValue);
+
+// Create from Future
+final futureSignal = SignalUtils.fromFuture(myFuture);
+
+// Poll periodically
+final pollSignal = SignalUtils.poll(fetchData, Duration(seconds: 5), initial);
 ```
 
 ### Animations
@@ -231,9 +512,11 @@ AnimatedSlot<int>(
 )
 ```
 
-## 🛠️ DevTools & Debugging
+## 🛠️ DevTools & Debugging (Work in progress)
 
 Neuron includes a powerful DevTools integration for debugging and performance monitoring.
+
+> **Note**: This feature is currently a work in progress. The core infrastructure (Debug Server, WebSocket API) is fully functional, and the DevTools extension UI is coming soon!
 
 ### Setup
 
@@ -266,33 +549,11 @@ Neuron starts a unified Debug Server (WebSocket + HTTP) on port `9090` (or next 
 
 ## 📊 Performance
 
-Neuron is designed for high performance, outperforming many other state management solutions in benchmarks.
+Neuron is designed for high performance with minimal overhead.
 
-| Benchmark | Neuron | GetX | Riverpod | Bloc | Provider |
-|-----------|--------|------|----------|------|----------|
-| **Update Time** | **0.15ms** | 0.18ms | 0.25ms | 0.36ms | 0.42ms |
-| **Memory/Signal** | **2.1KB** | 2.8KB | 3.5KB | 4.2KB | 3.1KB |
-| **Lines of Code** | **12** | 15 | 28 | 45 | 22 |
-
-*Benchmarks run on Android Emulator (API 33), Flutter 3.10. See `benchmark/` for details.*
-
-## 🛠️ CLI Tool
-
-Neuron includes a CLI for project scaffolding and code generation.
-
-```bash
-# Install
-dart pub global activate --source path packages/neuron_cli
-
-# Create Project
-neuron create my_app
-
-# Generate Screen
-neuron g s settings
-
-# Generate Controller
-neuron g c auth
-```
+- **Fast Updates**: Optimized for rapid state changes and UI rebuilds.
+- **Low Memory Footprint**: Efficient signal implementation.
+- **Minimal Boilerplate**: Concise syntax reduces code size.
 
 ## 🤝 Contributing
 
