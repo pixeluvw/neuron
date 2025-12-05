@@ -54,6 +54,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean, predictable API
 - Type-safe and compile-time checked
 
+## [1.1.2] - 2025-12-05
+
+### Metadata
+- Added package topics to `pubspec.yaml` for better discovery on pub.dev.
+- Added `CODE_OF_CONDUCT.md`.
+
 ## [1.1.1] - 2025-12-05
 
 ### Documentation

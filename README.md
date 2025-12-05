@@ -4,6 +4,7 @@
 
 Neuron is a powerful, elegant reactive state management solution built around the Signal/Slot pattern. Designed for simplicity, performance, and exceptional developer experience.
 
+[![Pub](https://img.shields.io/pub/v/neuron.svg)](https://pub.dev/packages/neuron)
 [![Tests](https://img.shields.io/badge/tests-73%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](test/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -73,7 +74,7 @@ Or add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  neuron: ^1.1.1
+  neuron: ^1.1.2
 ```
 
 Then run:
