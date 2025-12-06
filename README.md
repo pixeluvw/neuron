@@ -67,7 +67,7 @@ This pattern simplifies state management while providing fine-grained reactivity
 
 See `AnimatedSlot` in action with these examples from the sample app:
 
-| Animated Slot | Directional Slide | Blur Effects |
+| Animated Slot | Blur Effects | Directional Slide |
 |:---:|:---:|:---:|
 | <img src="doc/assets/animated_slot_demo.png" width="250" /> | <img src="doc/assets/directional_slide.png" width="250" /> | <img src="doc/assets/blur_effects.png" width="250" /> |
 
