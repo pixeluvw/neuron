@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.10] - 2025-12-06
 
 ### Documentation
-- Fixed README image links for pub.dev compatibility.
+- Moved README images to `example/assets` to ensure correct rendering on pub.dev.
 
 ## [1.1.9] - 2025-12-06
 
