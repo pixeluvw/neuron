@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  neuron: ^1.1.9
+  neuron: ^1.1.10
 
 
 dev_dependencies:

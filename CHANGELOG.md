@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean, predictable API
 - Type-safe and compile-time checked
 
+## [1.1.10] - 2025-12-06
+
+### Documentation
+- Fixed README image links for pub.dev compatibility.
+
 ## [1.1.9] - 2025-12-06
 
 ### Maintenance

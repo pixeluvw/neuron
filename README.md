@@ -69,7 +69,7 @@ See `AnimatedSlot` in action with these examples from the sample app:
 
 | Animated Slot | Directional Slide | Blur Effects |
 |:---:|:---:|:---:|
-| <img src="doc/assets/animated_slot_demo.png" width="250" /> | <img src="doc/assets/directional_slide.png" width="250" /> | <img src="doc/assets/blur_effects.png" width="250" /> |
+| <img src="example/assets/animated_slot_demo.png" width="250" /> | <img src="example/assets/directional_slide.png" width="250" /> | <img src="example/assets/blur_effects.png" width="250" /> |
 
 ## 📦 Installation
 
@@ -83,7 +83,7 @@ Or add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  neuron: ^1.1.9
+  neuron: ^1.1.10
 ```
 
 Then run:
