@@ -19,10 +19,8 @@ Neuron brings **reactive programming** to Flutter with an intuitive Signal/Slot 
 Neuron's architecture connects **Signals** (reactive data) to **Slots** (reactive UI) through **NeuronController**:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  NeuronController           →→→→→→→→→→→           Slot Widget   │
-│  (defines Signals)           connect:             (rebuilds UI) │
-└─────────────────────────────────────────────────────────────────┘
+NeuronController  ──────►  Slot Widget
+(defines Signals)  connect:  (rebuilds UI)
 ```
 
 #### Step 1: Define Signals in a Controller
@@ -131,7 +129,7 @@ Or add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  neuron: ^1.1.11
+  neuron: ^1.1.12
 ```
 
 Then run:
