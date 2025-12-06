@@ -196,10 +196,10 @@ packages:
     dependency: "direct main"
     description:
       name: neuron
-      sha256: a0dccd6c0587fd344367b09208259edda02c24367f6841f5bb98804e5e7c5891
+      sha256: "21bc1aabf6f842267a53552353f6f5ac138d7eba3be3c178d8cbbd84e6188e85"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.4"
+    version: "1.1.8"
   path:
     dependency: transitive
     description:
