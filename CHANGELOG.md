@@ -54,6 +54,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean, predictable API
 - Type-safe and compile-time checked
 
+## [1.1.11] - 2025-12-06
+
+### Added
+- **Numeric Signal Shortcuts**: New extension methods for convenient numeric operations:
+  - `inc()` / `dec()` - short aliases for increment/decrement
+  - `add(n)` / `sub(n)` - add or subtract custom amounts
+  - All work alongside existing `increment()`, `decrement()`, and `emit()` methods
+
+### Documentation
+- **Improved Signal/Slot Philosophy**: README now includes step-by-step guide showing how Signals in controllers connect to Slots in widgets with visual diagram
+- **Comprehensive AnimatedSlot docs**: All 16 parameters documented with usage tips and best practices
+- **AnimatedFormSlot constructor docs**: Added usage examples and best practices for form validation animations
+- **Fixed gallery images**: Corrected image ordering in README gallery section
+
 ## [1.1.10] - 2025-12-06
 
 ### Documentation

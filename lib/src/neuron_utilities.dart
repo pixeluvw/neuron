@@ -198,6 +198,40 @@ extension SignalExtensions<T> on Signal<T> {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Short Aliases for Numeric Signals
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Short alias for [increment]. Increments numeric signal by [by] (default 1).
+  ///
+  /// ```dart
+  /// count.inc();    // same as count.increment()
+  /// count.inc(5);   // same as count.increment(5)
+  /// ```
+  void inc([num by = 1]) => increment(by);
+
+  /// Short alias for [decrement]. Decrements numeric signal by [by] (default 1).
+  ///
+  /// ```dart
+  /// count.dec();    // same as count.decrement()
+  /// count.dec(3);   // same as count.decrement(3)
+  /// ```
+  void dec([num by = 1]) => decrement(by);
+
+  /// Add [amount] to numeric signal and emit. Alias for [increment].
+  ///
+  /// ```dart
+  /// count.add(10);  // same as count.emit(count.val + 10)
+  /// ```
+  void add(num amount) => increment(amount);
+
+  /// Subtract [amount] from numeric signal and emit. Alias for [decrement].
+  ///
+  /// ```dart
+  /// count.sub(5);   // same as count.emit(count.val - 5)
+  /// ```
+  void sub(num amount) => decrement(amount);
+
   /// Get current snapshot.
   T snapshot() => val;
 

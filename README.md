@@ -16,21 +16,69 @@ Neuron brings **reactive programming** to Flutter with an intuitive Signal/Slot 
 
 ### The Signal/Slot Philosophy
 
-**Signals** are reactive values that emit changes:
-```dart
-final count = Signal<int>(0);
-count.emit(5);  // Emits new value
+Neuron's architecture connects **Signals** (reactive data) to **Slots** (reactive UI) through **NeuronController**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  NeuronController           →→→→→→→→→→→           Slot Widget   │
+│  (defines Signals)           connect:             (rebuilds UI) │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Slots** listen to signals and rebuild UI automatically:
+#### Step 1: Define Signals in a Controller
+
+**Signals** are reactive values defined inside a `NeuronController`. They emit changes when updated:
+
+```dart
+class CounterController extends NeuronController {
+  // Signal defined and bound to controller lifecycle
+  late final count = Signal<int>(0).bind(this);
+  
+  // Primary API: emit()
+  void increment() => count.emit(count.val + 1);
+  void decrement() => count.emit(count.val - 1);
+  void reset()     => count.emit(0);
+  
+  // Convenient shortcuts also available:
+  // count.inc(), count.dec()        — short aliases
+  // count.add(5), count.sub(3)      — add/subtract amount
+  // count.increment(), count.decrement()  — full names
+  
+  // Static getter provides access to the controller instance
+  static CounterController get init =>
+      Neuron.ensure<CounterController>(() => CounterController());
+}
+```
+
+#### Step 2: Access Controller in Widget
+
+In your widget, get the controller instance via the static `init` getter:
+
+```dart
+class CounterPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = CounterController.init;  // Access controller
+    // Now c.count is the Signal you connect to Slots
+    ...
+  }
+}
+```
+
+#### Step 3: Connect Signal to Slot
+
+The `connect:` parameter expects a Signal. Pass `c.count` (the Signal from your controller):
+
 ```dart
 Slot<int>(
-  connect: count,
+  connect: c.count,  // ← This is the Signal from the controller
   to: (context, value) => Text('Count: $value'),
 )
 ```
 
-This pattern simplifies state management while providing fine-grained reactivity.
+The **Slot** subscribes to the Signal and automatically rebuilds whenever `count.emit()` is called.
+
+This pattern simplifies state management while providing fine-grained reactivity—only the connected Slot rebuilds, not the entire widget tree.
 
 ## ✨ Features
 
@@ -69,7 +117,7 @@ See `AnimatedSlot` in action with these examples from the sample app:
 
 | Animated Slot | Directional Slide | Blur Effects |
 |:---:|:---:|:---:|
-| <img src="example/assets/animated_slot_demo.png" width="250" /> | <img src="example/assets/directional_slide.png" width="250" /> | <img src="example/assets/blur_effects.png" width="250" /> |
+| <img src="example/assets/animated_slot_demo.png" width="250" /> | <img src="example/assets/blur_effects.png" width="250" /> | <img src="example/assets/directional_slide.png" width="250" /> |
 
 ## 📦 Installation
 
@@ -83,7 +131,7 @@ Or add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  neuron: ^1.1.10
+  neuron: ^1.1.11
 ```
 
 Then run:

@@ -167,26 +167,132 @@ class SpringConfig {
 /// )
 /// ```
 class AnimatedSlot<T> extends StatefulWidget {
+  /// The signal to connect to. The slot rebuilds when this signal emits.
+  ///
+  /// ```dart
+  /// AnimatedSlot<int>(
+  ///   connect: controller.count,  // Your Signal<int>
+  ///   to: (ctx, val) => Text('$val'),
+  /// )
+  /// ```
   final Signal<T> connect;
+
+  /// Builder function that creates the widget for the current value.
+  ///
+  /// Called each time the signal emits with the new value.
   final Widget Function(BuildContext context, T value) to;
+
+  /// Duration of the animation. Default: 300ms.
+  ///
+  /// **Tip**: Use shorter durations (150-200ms) for frequent updates,
+  /// longer durations (400-600ms) for dramatic emphasis.
   final Duration duration;
+
+  /// Curve applied to the animation. Default: [Curves.easeInOut].
+  ///
+  /// **Best practices**:
+  /// - [Curves.easeOutCubic] for natural deceleration
+  /// - [Curves.elasticOut] for bouncy effects
+  /// - [Curves.fastOutSlowIn] for Material Design feel
   final Curve curve;
+
+  /// Curve for the exiting widget. If null, uses [curve].
   final Curve? exitCurve;
+
+  /// Visual effect applied during transitions. Default: [SlotEffect.fade].
+  ///
+  /// Combine effects using the `|` operator:
+  /// ```dart
+  /// effect: SlotEffect.fade | SlotEffect.scale | SlotEffect.blur
+  /// ```
+  ///
+  /// **Available effects**: fade, scale, slide, slideUp, slideDown,
+  /// slideLeft, slideRight, rotation, flip, blur, bounce, elastic.
   final SlotEffect effect;
+
+  /// Direction-aware effect that changes based on value direction.
+  ///
+  /// ```dart
+  /// directionalEffect: DirectionalEffect.vertical,  // up/down based on increase/decrease
+  /// ```
   final DirectionalEffect? directionalEffect;
+
+  /// Delay before the animation starts. Default: [Duration.zero].
   final Duration delay;
+
+  /// Called when the animation starts.
   final VoidCallback? onAnimationStart;
+
+  /// Called when the animation completes.
   final VoidCallback? onAnimationComplete;
+
+  /// Optional child widget passed to the builder.
+  ///
+  /// Use this for static content that doesn't change,
+  /// improving performance by avoiding unnecessary rebuilds.
   final Widget? child;
 
+  // ─────────────────────────────────────────────────────────────────────────
   // Enhanced animation controls
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Starting scale for scale effects. Default: 0.8.
+  ///
+  /// **Tip**: Use 0.95-1.0 for subtle effects, 0.5-0.8 for dramatic pop-in.
   final double scaleBegin;
+
+  /// Ending scale for scale effects. Default: 1.0.
   final double scaleEnd;
+
+  /// Offset for slide effects in relative units. Default: (0, 0.3).
+  ///
+  /// Values are relative to widget size (0.0-1.0 = 0%-100% of size).
   final Offset slideOffset;
+
+  /// Number of turns for rotation effect. Default: 0.25 (90 degrees).
   final double rotationTurns;
+
+  /// Blur intensity for blur effect. Default: 5.0.
+  ///
+  /// Higher values create stronger blur during transitions.
+  /// **Tip**: Use 3-8 for subtle blur, 15+ for dramatic frosted glass effect.
   final double blurSigma;
+
+  /// Whether to clip content during animation to prevent overflow.
+  ///
+  /// Set to `true` when slide animations might overflow their container.
+  /// Default: false.
   final bool clipBehavior;
 
+  /// Creates an AnimatedSlot that smoothly animates between value changes.
+  ///
+  /// ## Basic Usage
+  /// ```dart
+  /// AnimatedSlot<int>(
+  ///   connect: controller.counter,
+  ///   to: (ctx, val) => Text('$val'),
+  /// )
+  /// ```
+  ///
+  /// ## With Effects
+  /// ```dart
+  /// AnimatedSlot<int>(
+  ///   connect: controller.counter,
+  ///   effect: SlotEffect.fadeScale | SlotEffect.blur,
+  ///   duration: Duration(milliseconds: 400),
+  ///   curve: Curves.elasticOut,
+  ///   to: (ctx, val) => Text('$val', style: TextStyle(fontSize: 48)),
+  /// )
+  /// ```
+  ///
+  /// ## Direction-Aware
+  /// ```dart
+  /// AnimatedSlot<int>(
+  ///   connect: controller.counter,
+  ///   directionalEffect: DirectionalEffect.vertical,  // slides up/down
+  ///   to: (ctx, val) => Text('$val'),
+  /// )
+  /// ```
   const AnimatedSlot({
     super.key,
     required this.connect,
@@ -2196,6 +2302,38 @@ class AnimatedFormSlot<T> extends StatefulWidget {
   /// Callback when validation state changes
   final void Function(FormValidationResult result)? onValidationChanged;
 
+  /// Creates an AnimatedFormSlot for form fields with validation animations.
+  ///
+  /// ## Basic Usage
+  /// ```dart
+  /// AnimatedFormSlot<String>(
+  ///   connect: controller.email,
+  ///   validator: (value) => value.isEmpty ? 'Required' : null,
+  ///   to: (context, value, validation, isFocused) => TextField(
+  ///     onChanged: (v) => controller.email.emit(v),
+  ///     decoration: InputDecoration(
+  ///       errorText: validation.errorMessage,
+  ///     ),
+  ///   ),
+  /// )
+  /// ```
+  ///
+  /// ## With Animation Effects
+  /// ```dart
+  /// AnimatedFormSlot<String>(
+  ///   connect: controller.password,
+  ///   validator: (v) => v.length < 8 ? 'Min 8 chars' : null,
+  ///   errorEffect: FormAnimationEffect.shake,
+  ///   successEffect: FormAnimationEffect.pulse,
+  ///   showSuccessAnimation: true,
+  ///   to: (context, value, validation, isFocused) => ...
+  /// )
+  /// ```
+  ///
+  /// **Best practices**:
+  /// - Use [validationDelay] for debounced validation on text fields
+  /// - Connect [errorSignal] to display errors elsewhere in the UI
+  /// - Use [focusedSignal] to style focused fields differently
   const AnimatedFormSlot({
     super.key,
     required this.connect,
