@@ -153,11 +153,17 @@ MultiSlot2<String, int>(
 ### 4. ConditionalSlot
 Conditionally renders widgets based on a boolean signal.
 
+
+
 ```dart
-ConditionalSlot(
+
+final isLoggedIn = Signal<bool>(false);
+
+ConditionalSlot<bool>(
   connect: isLoggedIn,
-  ifTrue: (context) => Dashboard(),
-  ifFalse: (context) => LoginPage(),
+  when: (val) => val,
+  to: (context, _) => UserDashboard(),
+  orElse: (context) => LoginPage(),
 )
 ```
 
