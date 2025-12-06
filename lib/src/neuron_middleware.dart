@@ -262,6 +262,7 @@ class AggregateMiddleware<T> extends SignalMiddleware<T> {
   AggregateMiddleware(this.middlewares);
 
   @override
+
   /// Processes the value through each middleware in the list sequentially.
   T process(T oldValue, T newValue) {
     T result = newValue;

@@ -92,7 +92,8 @@ void main() {
       final signal = MiddlewareSignal<int>(
         0,
         middlewares: [
-          RateLimitMiddleware<int>(minInterval: const Duration(milliseconds: 100)),
+          RateLimitMiddleware<int>(
+              minInterval: const Duration(milliseconds: 100)),
         ],
       );
 
