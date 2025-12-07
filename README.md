@@ -129,7 +129,7 @@ Or add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  neuron: ^1.1.12
+  neuron: ^1.1.13
 ```
 
 Then run:

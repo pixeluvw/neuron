@@ -16,6 +16,7 @@
 
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'neuron_atom.dart';
 import 'debug/index.dart';
@@ -855,7 +856,28 @@ class NeuronApp extends StatefulWidget {
   final ThemeData? theme;
   final ThemeData? darkTheme;
   final ThemeMode? themeMode;
-  final Map<String, WidgetBuilder>? routes;
+
+  /// Route definitions using [NeuronRoute] for clean, type-safe routing.
+  ///
+  /// Example:
+  /// ```dart
+  /// NeuronApp(
+  ///   routes: [
+  ///     NeuronRoute(
+  ///       name: 'home',
+  ///       path: '/',
+  ///       builder: (context, params) => const HomePage(),
+  ///     ),
+  ///     NeuronRoute(
+  ///       name: 'profile',
+  ///       path: '/profile/:id',
+  ///       builder: (context, params) => ProfilePage(id: params['id']),
+  ///     ),
+  ///   ],
+  ///   initialRoute: '/',
+  /// )
+  /// ```
+  final List<NeuronRoute>? routes;
   final String? initialRoute;
   final RouteFactory? onGenerateRoute;
   final RouteFactory? onUnknownRoute;
@@ -869,6 +891,9 @@ class NeuronApp extends StatefulWidget {
 
   /// Auto-open the debug dashboard in a desktop browser (optional).
   final bool autoOpenDevDashboard;
+
+  /// Middlewares to run before/after navigation.
+  final List<NeuronNavigationMiddleware> middlewares;
 
   const NeuronApp({
     super.key,
@@ -885,6 +910,7 @@ class NeuronApp extends StatefulWidget {
     this.enableDevTools = kDebugMode,
     this.maxDevToolsEvents = 500,
     this.autoOpenDevDashboard = false,
+    this.middlewares = const [],
   });
 
   @override
@@ -968,12 +994,14 @@ class _NeuronAppState extends State<NeuronApp> {
 
   @override
   Widget build(BuildContext context) {
-    // If home is provided, remove "/" from routes to avoid conflict
-    final effectiveRoutes = widget.routes ?? {};
-    final cleanRoutes = widget.home != null
-        ? (Map<String, WidgetBuilder>.from(effectiveRoutes)
-          ..remove(Navigator.defaultRouteName))
-        : effectiveRoutes;
+    // Register routes with NeuronNavigator if provided
+    if (widget.routes != null && widget.routes!.isNotEmpty) {
+      final navigator = NeuronNavigator.instance;
+      navigator.registerRoutes(widget.routes!, reset: true);
+      for (final middleware in widget.middlewares) {
+        navigator.addMiddleware(middleware);
+      }
+    }
 
     return MaterialApp(
       navigatorKey: Neuron.navigatorKey,
@@ -982,11 +1010,134 @@ class _NeuronAppState extends State<NeuronApp> {
       theme: widget.theme,
       darkTheme: widget.darkTheme,
       themeMode: widget.themeMode,
-      routes: cleanRoutes,
       initialRoute: widget.initialRoute,
-      onGenerateRoute: widget.onGenerateRoute,
+      navigatorObservers: widget.routes != null
+          ? [NeuronNavigationObserver(NeuronNavigator.instance)]
+          : [],
+      onGenerateRoute: widget.onGenerateRoute ?? _generateRoute,
       onUnknownRoute: widget.onUnknownRoute,
       debugShowCheckedModeBanner: widget.debugShowCheckedModeBanner,
+    );
+  }
+
+  Route<dynamic>? _generateRoute(RouteSettings settings) {
+    if (widget.routes == null || widget.routes!.isEmpty) return null;
+
+    final navigator = NeuronNavigator.instance;
+    final name = settings.name ?? widget.initialRoute ?? '/';
+    final uri = Uri.tryParse(name);
+
+    if (uri != null) {
+      // Find matching route by path
+      for (final route in widget.routes!) {
+        final match = _matchRoute(route, uri.path);
+        if (match != null) {
+          final state = NeuronRouteState(
+            path: uri.path,
+            name: route.name,
+            params: match,
+            query: uri.queryParameters,
+            meta: route.meta,
+            uri: uri,
+            route: route,
+          );
+
+          // Update navigator state
+          navigator.currentRoute.emit(state);
+
+          return _buildRoute(route, state, settings);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  Map<String, dynamic>? _matchRoute(NeuronRoute route, String path) {
+    final routeSegments = Uri.parse(route.path).pathSegments;
+    final pathSegments = Uri.parse(path).pathSegments;
+
+    // Handle root path
+    if (route.path == '/' && (path == '/' || path.isEmpty)) {
+      return {};
+    }
+
+    if (routeSegments.length != pathSegments.length) return null;
+
+    final params = <String, dynamic>{};
+    for (int i = 0; i < routeSegments.length; i++) {
+      final routeSeg = routeSegments[i];
+      final pathSeg = pathSegments[i];
+
+      if (routeSeg.startsWith(':')) {
+        params[routeSeg.substring(1)] = pathSeg;
+      } else if (routeSeg != pathSeg) {
+        return null;
+      }
+    }
+
+    return params;
+  }
+
+  Route<dynamic> _buildRoute(
+    NeuronRoute route,
+    NeuronRouteState state,
+    RouteSettings settings,
+  ) {
+    Widget builder(BuildContext context) {
+      return NeuronRouteScope(
+        state: state,
+        child: route.builder(context, state.params),
+      );
+    }
+
+    final spec = route.transitionSpec;
+
+    if (route.transition == NeuronPageTransition.cupertino) {
+      return CupertinoPageRoute(
+        builder: builder,
+        settings: settings,
+        maintainState: route.maintainState,
+        fullscreenDialog: route.fullscreenDialog,
+      );
+    }
+
+    if (route.transition == NeuronPageTransition.none ||
+        route.transition == NeuronPageTransition.material) {
+      return MaterialPageRoute(
+        builder: builder,
+        settings: settings,
+        maintainState: route.maintainState,
+        fullscreenDialog: route.fullscreenDialog,
+      );
+    }
+
+    return PageRouteBuilder(
+      settings: settings,
+      transitionDuration: spec.duration,
+      reverseTransitionDuration: spec.reverseDuration,
+      maintainState: route.maintainState,
+      fullscreenDialog: route.fullscreenDialog,
+      pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: spec.curve,
+          reverseCurve: spec.reverseCurve,
+        );
+        final curvedSecondary = CurvedAnimation(
+          parent: secondaryAnimation,
+          curve: spec.reverseCurve,
+          reverseCurve: spec.curve,
+        );
+        return NeuronTransitions.build(
+          route.transition,
+          curved,
+          curvedSecondary,
+          child,
+          spec,
+        );
+      },
     );
   }
 }

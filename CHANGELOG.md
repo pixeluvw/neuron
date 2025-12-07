@@ -54,6 +54,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean, predictable API
 - Type-safe and compile-time checked
 
+## [1.1.13] - 2025-12-07
+
+### Changed
+- **NeuronApp Routes**: `NeuronApp.routes` now accepts `List<NeuronRoute>` instead of `Map<String, WidgetBuilder>` for cleaner, GetX-style routing syntax
+- **Unified Routing**: Routes defined with `NeuronRoute` now work seamlessly in `NeuronApp`, including path parameters, transitions, guards, and middleware
+
+### Added
+- **Middlewares in NeuronApp**: New `middlewares` parameter to add navigation middleware directly to `NeuronApp`
+- **Full Transition Support**: All 20+ `NeuronPageTransition` presets (fade, slide, scale, blur, etc.) now work with routes in `NeuronApp`
+- **Path Parameters**: Dynamic route segments like `/profile/:id` are fully supported and automatically parsed
+
+### Example
+```dart
+NeuronApp(
+  routes: [
+    NeuronRoute(
+      name: 'home',
+      path: '/',
+      builder: (context, params) => const HomePage(),
+    ),
+    NeuronRoute(
+      name: 'profile',
+      path: '/profile/:id',
+      builder: (context, params) => ProfilePage(id: params['id']),
+      transition: NeuronPageTransition.slideUp,
+    ),
+  ],
+  initialRoute: '/',
+)
+```
+
 ## [1.1.12] - 2025-12-06
 
 ### Fixed
