@@ -446,6 +446,51 @@ class _AnimatedSlotState<T> extends State<AnimatedSlot<T>>
       );
     }
 
+    // Apply wobble effect
+    if (effect.has(SlotEffect.wobble)) {
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.elasticOut,
+      );
+      result = RotationTransition(
+        turns: Tween<double>(begin: 0.03, end: 0).animate(curvedAnimation),
+        child: result,
+      );
+    }
+
+    // Apply swing effect
+    if (effect.has(SlotEffect.swing)) {
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.elasticOut,
+      );
+      result = AnimatedBuilder(
+        animation: curvedAnimation,
+        builder: (context, child) => Transform(
+          alignment: Alignment.topCenter,
+          transform: Matrix4.identity()
+            ..rotateZ((1 - curvedAnimation.value) * 0.1),
+          child: child,
+        ),
+        child: result,
+      );
+    }
+
+    // Apply shake effect
+    if (effect.has(SlotEffect.shake)) {
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.elasticOut,
+      );
+      result = SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.05, 0),
+          end: Offset.zero,
+        ).animate(curvedAnimation),
+        child: result,
+      );
+    }
+
     // Apply slide effects with configurable offset
     if (effect.has(SlotEffect.slideUp)) {
       result = SlideTransition(
@@ -496,6 +541,51 @@ class _AnimatedSlotState<T> extends State<AnimatedSlot<T>>
           begin: widget.scaleBegin,
           end: widget.scaleEnd,
         ).animate(animation),
+        child: result,
+      );
+    }
+
+    // Apply bounce effect
+    if (effect.has(SlotEffect.bounce)) {
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.bounceOut,
+      );
+      result = ScaleTransition(
+        scale: Tween<double>(
+          begin: widget.scaleBegin,
+          end: widget.scaleEnd,
+        ).animate(curvedAnimation),
+        child: result,
+      );
+    }
+
+    // Apply elastic effect
+    if (effect.has(SlotEffect.elastic)) {
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.elasticOut,
+      );
+      result = ScaleTransition(
+        scale: Tween<double>(
+          begin: widget.scaleBegin,
+          end: widget.scaleEnd,
+        ).animate(curvedAnimation),
+        child: result,
+      );
+    }
+
+    // Apply pulse effect
+    if (effect.has(SlotEffect.pulse)) {
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.elasticOut,
+      );
+      result = ScaleTransition(
+        scale: Tween<double>(
+          begin: 0.85,
+          end: 1.0,
+        ).animate(curvedAnimation),
         child: result,
       );
     }
