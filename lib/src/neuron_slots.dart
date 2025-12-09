@@ -1,15 +1,126 @@
 // neuron_slots.dart
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEURON SLOTS - Animated & Specialized Slot Widgets
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// This file provides enhanced Slot widgets with animation, transitions,
+// and visual effects for building polished, production-ready UIs.
+//
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ SLOT WIDGET GALLERY                                                        │
+// ├───────────────────┬─────────────────────────────────────────────────────────┤
+// │ AnimatedSlot      │ Implicit animation with configurable effects         │
+// │ SpringSlot        │ Physics-based spring animation                       │
+// │ MorphSlot         │ Smooth transitions between different widgets         │
+// │ PulseSlot         │ Attention-grabbing pulse effect on change            │
+// │ ShimmerSlot       │ Loading shimmer effect during async operations       │
+// │ GestureAnimatedSlot│ Touch-responsive animations (tap, long press)       │
+// │ ParallaxSlot      │ Depth-based parallax scrolling effect                │
+// │ MultiSlot         │ Combine 2-6 signals with type-safe builders          │
+// └───────────────────┴─────────────────────────────────────────────────────────┘
+//
+// EFFECT SYSTEM:
+// Effects can be combined using the `|` operator:
+//   effect: SlotEffect.fade | SlotEffect.scale | SlotEffect.blur
+//
+// SPRING PHYSICS:
+// SpringSlot uses Flutter's physics engine for natural motion:
+//   SpringConfig.bouncy  - Playful, energetic (low damping)
+//   SpringConfig.smooth  - Professional, elegant (high damping)
+//   SpringConfig.snappy  - Quick, responsive (high stiffness)
+//
+// USAGE EXAMPLES:
+//
+// 1. Basic animated counter:
+//    AnimatedSlot<int>(
+//      connect: controller.count,
+//      effect: SlotEffect.fadeScale,
+//      to: (ctx, val) => Text('$val'),
+//    )
+//
+// 2. Spring-animated temperature:
+//    SpringSlot<double>(
+//      connect: controller.temperature,
+//      config: SpringConfig.smooth,
+//      to: (ctx, val) => Text('${val.toStringAsFixed(1)}°'),
+//    )
+//
+// 3. Multi-signal dashboard:
+//    MultiSlot.t3(
+//      signals: (temp, humidity, pressure),
+//      to: (ctx, t, h, p) => DashboardCard(t, h, p),
+//    )
+//
+// See also:
+// - neuron_core.dart  : Basic Slot and AsyncSlot widgets
+// - SlotEffect        : Available visual effects
+// - SpringConfig      : Spring physics presets
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
 part of 'neuron_extensions.dart';
 
-/// ============================================================================
+/// ════════════════════════════════════════════════════════════════════════════
 /// SLOT EFFECTS & TRANSITIONS
-/// ============================================================================
+/// ════════════════════════════════════════════════════════════════════════════
 
-/// Rich visual effects for slot animations.
+/// Visual effects for slot animations.
 ///
-/// Effects can be combined using the `|` operator:
+/// [SlotEffect] provides a composable system for defining visual transitions
+/// when signal values change. Effects can be combined using the bitwise OR
+/// operator (`|`) to create rich, layered animations.
+///
+/// ## Basic Effects
+///
+/// | Effect       | Description                          |
+/// |--------------|--------------------------------------|
+/// | `fade`       | Opacity transition (0 → 1)          |
+/// | `scale`      | Size transition (small → normal)    |
+/// | `slide`      | Horizontal slide                     |
+/// | `slideUp`    | Slide from bottom                    |
+/// | `slideDown`  | Slide from top                       |
+/// | `slideLeft`  | Slide from right                     |
+/// | `slideRight` | Slide from left                      |
+/// | `rotation`   | Rotate during transition             |
+/// | `flip`       | 3D flip effect                       |
+/// | `blur`       | Gaussian blur during transition      |
+///
+/// ## Dramatic Effects
+///
+/// | Effect    | Description                              |
+/// |-----------|------------------------------------------|
+/// | `bounce`  | Bouncy overshoot animation               |
+/// | `elastic` | Spring-like elastic effect               |
+/// | `wobble`  | Side-to-side wobble                      |
+/// | `pulse`   | Attention-grabbing pulse                 |
+/// | `shake`   | Quick shake effect                       |
+/// | `swing`   | Pendulum-like swing                      |
+///
+/// ## Combining Effects
+///
 /// ```dart
+/// // Single effect
+/// effect: SlotEffect.fade
+///
+/// // Combined effects
 /// effect: SlotEffect.fade | SlotEffect.scale | SlotEffect.blur
+///
+/// // Pre-combined effects
+/// effect: SlotEffect.fadeScale
+/// effect: SlotEffect.fadeSlideUp
+/// ```
+///
+/// ## Usage with AnimatedSlot
+///
+/// ```dart
+/// AnimatedSlot<int>(
+///   connect: controller.count,
+///   effect: SlotEffect.fadeScale | SlotEffect.blur,
+///   duration: Duration(milliseconds: 400),
+///   curve: Curves.easeOutBack,
+///   to: (ctx, val) => Text('$val', style: TextStyle(fontSize: 48)),
+/// )
 /// ```
 class SlotEffect {
   final int _value;
@@ -644,27 +755,302 @@ class ConditionalSlot<T> extends StatelessWidget {
   }
 }
 
-/// MultiSlot2 - Connect two signals at once.
+/// ============================================================================
+/// MULTI SLOT - UNIFIED MULTI-SIGNAL WIDGET
+/// ============================================================================
+
+/// A widget that rebuilds when any of multiple signals change.
 ///
-/// Avoids nested Slot hell by combining multiple signals into
-/// a single widget.
+/// [MultiSlot] provides a clean, efficient way to subscribe to multiple signals
+/// without deeply nested builders. It uses a single subscription per signal
+/// and rebuilds once when any signal changes.
 ///
-/// ## Basic Usage
+/// ## Type-Safe Factory Constructors
+///
+/// Use the numbered factory constructors for compile-time type safety:
 ///
 /// ```dart
-/// final name = Signal<String>('Alice');
-/// final age = Signal<int>(25);
+/// // Two signals
+/// MultiSlot.t2(
+///   connect: (nameSignal, ageSignal),
+///   to: (context, name, age) => Text('$name is $age'),
+/// )
 ///
-/// MultiSlot2<String, int>(
-///   connect: (name, age),
-///   to: (context, n, a) => Text('$n is $a years old'),
+/// // Three signals
+/// MultiSlot.t3(
+///   connect: (a, b, c),
+///   to: (context, v1, v2, v3) => Text('$v1 $v2 $v3'),
 /// )
 /// ```
-class MultiSlot2<T1, T2> extends StatelessWidget {
+///
+/// ## Dynamic List of Signals
+///
+/// For a variable number of signals (loses type safety):
+///
+/// ```dart
+/// MultiSlot.list(
+///   connect: [signal1, signal2, signal3],
+///   to: (context, values) => Text(values.join(', ')),
+/// )
+/// ```
+///
+/// ## Comparison with Nested Slots
+///
+/// Instead of:
+/// ```dart
+/// Slot(
+///   connect: signal1,
+///   to: (ctx, v1) => Slot(
+///     connect: signal2,
+///     to: (ctx, v2) => Slot(
+///       connect: signal3,
+///       to: (ctx, v3) => MyWidget(v1, v2, v3),
+///     ),
+///   ),
+/// )
+/// ```
+///
+/// Use:
+/// ```dart
+/// MultiSlot.t3(
+///   connect: (signal1, signal2, signal3),
+///   to: (ctx, v1, v2, v3) => MyWidget(v1, v2, v3),
+/// )
+/// ```
+class MultiSlot extends StatefulWidget {
+  final List<NeuronAtom> _signals;
+  final Widget Function(BuildContext context, List<dynamic> values) _builder;
+
+  const MultiSlot._({
+    super.key,
+    required List<NeuronAtom> signals,
+    required Widget Function(BuildContext context, List<dynamic> values) builder,
+  })  : _signals = signals,
+        _builder = builder;
+
+  /// Creates a MultiSlot for two signals with type-safe builder.
+  ///
+  /// ```dart
+  /// MultiSlot.t2(
+  ///   connect: (nameSignal, ageSignal),
+  ///   to: (context, name, age) => Text('$name ($age)'),
+  /// )
+  /// ```
+  static Widget t2<T1, T2>({
+    Key? key,
+    required (NeuronAtom<T1>, NeuronAtom<T2>) connect,
+    required Widget Function(BuildContext context, T1 v1, T2 v2) to,
+  }) {
+    return MultiSlot._(
+      key: key,
+      signals: [connect.$1, connect.$2],
+      builder: (ctx, vals) => to(ctx, vals[0] as T1, vals[1] as T2),
+    );
+  }
+
+  /// Creates a MultiSlot for three signals with type-safe builder.
+  ///
+  /// ```dart
+  /// MultiSlot.t3(
+  ///   connect: (a, b, c),
+  ///   to: (context, v1, v2, v3) => Text('$v1 $v2 $v3'),
+  /// )
+  /// ```
+  static Widget t3<T1, T2, T3>({
+    Key? key,
+    required (NeuronAtom<T1>, NeuronAtom<T2>, NeuronAtom<T3>) connect,
+    required Widget Function(BuildContext context, T1 v1, T2 v2, T3 v3) to,
+  }) {
+    return MultiSlot._(
+      key: key,
+      signals: [connect.$1, connect.$2, connect.$3],
+      builder: (ctx, vals) =>
+          to(ctx, vals[0] as T1, vals[1] as T2, vals[2] as T3),
+    );
+  }
+
+  /// Creates a MultiSlot for four signals with type-safe builder.
+  static Widget t4<T1, T2, T3, T4>({
+    Key? key,
+    required (NeuronAtom<T1>, NeuronAtom<T2>, NeuronAtom<T3>, NeuronAtom<T4>)
+        connect,
+    required Widget Function(BuildContext context, T1 v1, T2 v2, T3 v3, T4 v4)
+        to,
+  }) {
+    return MultiSlot._(
+      key: key,
+      signals: [connect.$1, connect.$2, connect.$3, connect.$4],
+      builder: (ctx, vals) =>
+          to(ctx, vals[0] as T1, vals[1] as T2, vals[2] as T3, vals[3] as T4),
+    );
+  }
+
+  /// Creates a MultiSlot for five signals with type-safe builder.
+  static Widget t5<T1, T2, T3, T4, T5>({
+    Key? key,
+    required (
+      NeuronAtom<T1>,
+      NeuronAtom<T2>,
+      NeuronAtom<T3>,
+      NeuronAtom<T4>,
+      NeuronAtom<T5>
+    ) connect,
+    required Widget Function(
+            BuildContext context, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5)
+        to,
+  }) {
+    return MultiSlot._(
+      key: key,
+      signals: [connect.$1, connect.$2, connect.$3, connect.$4, connect.$5],
+      builder: (ctx, vals) => to(ctx, vals[0] as T1, vals[1] as T2,
+          vals[2] as T3, vals[3] as T4, vals[4] as T5),
+    );
+  }
+
+  /// Creates a MultiSlot for six signals with type-safe builder.
+  static Widget t6<T1, T2, T3, T4, T5, T6>({
+    Key? key,
+    required (
+      NeuronAtom<T1>,
+      NeuronAtom<T2>,
+      NeuronAtom<T3>,
+      NeuronAtom<T4>,
+      NeuronAtom<T5>,
+      NeuronAtom<T6>
+    ) connect,
+    required Widget Function(
+            BuildContext context, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6)
+        to,
+  }) {
+    return MultiSlot._(
+      key: key,
+      signals: [
+        connect.$1,
+        connect.$2,
+        connect.$3,
+        connect.$4,
+        connect.$5,
+        connect.$6
+      ],
+      builder: (ctx, vals) => to(ctx, vals[0] as T1, vals[1] as T2,
+          vals[2] as T3, vals[3] as T4, vals[4] as T5, vals[5] as T6),
+    );
+  }
+
+  /// Creates a MultiSlot for a dynamic list of signals.
+  ///
+  /// Use this when you have a variable number of signals or when
+  /// type safety is not critical.
+  ///
+  /// ```dart
+  /// MultiSlot.list(
+  ///   connect: [signal1, signal2, signal3],
+  ///   to: (context, values) {
+  ///     final name = values[0] as String;
+  ///     final age = values[1] as int;
+  ///     return Text('$name: $age');
+  ///   },
+  /// )
+  /// ```
+  static Widget list({
+    Key? key,
+    required List<NeuronAtom> connect,
+    required Widget Function(BuildContext context, List<dynamic> values) to,
+  }) {
+    return MultiSlot._(
+      key: key,
+      signals: connect,
+      builder: to,
+    );
+  }
+
+  @override
+  State<MultiSlot> createState() => _MultiSlotState();
+}
+
+class _MultiSlotState extends State<MultiSlot> {
+  late List<dynamic> _values;
+  final List<VoidCallback> _cancels = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _values = widget._signals.map((s) => s.value).toList();
+    _subscribeAll();
+  }
+
+  void _subscribeAll() {
+    for (int i = 0; i < widget._signals.length; i++) {
+      final index = i;
+      final cancel = widget._signals[i].subscribe(() {
+        if (mounted) {
+          setState(() {
+            _values[index] = widget._signals[index].value;
+          });
+        }
+      });
+      _cancels.add(cancel);
+    }
+  }
+
+  void _unsubscribeAll() {
+    for (final cancel in _cancels) {
+      cancel();
+    }
+    _cancels.clear();
+  }
+
+  @override
+  void didUpdateWidget(MultiSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Check if signals changed
+    bool changed = oldWidget._signals.length != widget._signals.length;
+    if (!changed) {
+      for (int i = 0; i < widget._signals.length; i++) {
+        if (widget._signals[i] != oldWidget._signals[i]) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (changed) {
+      _unsubscribeAll();
+      _values = widget._signals.map((s) => s.value).toList();
+      _subscribeAll();
+    }
+  }
+
+  @override
+  void dispose() {
+    _unsubscribeAll();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget._builder(context, _values);
+  }
+}
+
+// Legacy aliases for backward compatibility
+/// @Deprecated('Use MultiSlot.t2 instead')
+typedef MultiSlot2<T1, T2> = _LegacyMultiSlot2<T1, T2>;
+
+/// @Deprecated('Use MultiSlot.t3 instead')
+typedef MultiSlot3<T1, T2, T3> = _LegacyMultiSlot3<T1, T2, T3>;
+
+/// @Deprecated('Use MultiSlot.t4 instead')
+typedef MultiSlot4<T1, T2, T3, T4> = _LegacyMultiSlot4<T1, T2, T3, T4>;
+
+/// @Deprecated('Use MultiSlot.t5 instead')
+typedef MultiSlot5<T1, T2, T3, T4, T5> = _LegacyMultiSlot5<T1, T2, T3, T4, T5>;
+
+// Keep legacy classes for backward compatibility but mark as internal
+class _LegacyMultiSlot2<T1, T2> extends StatelessWidget {
   final (Signal<T1>, Signal<T2>) connect;
   final Widget Function(BuildContext context, T1 val1, T2 val2) to;
 
-  const MultiSlot2({
+  const _LegacyMultiSlot2({
     super.key,
     required this.connect,
     required this.to,
@@ -672,35 +1058,15 @@ class MultiSlot2<T1, T2> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NeuronAtomBuilder<T1>(
-      atom: connect.$1,
-      builder: (ctx, val1, _) {
-        return NeuronAtomBuilder<T2>(
-          atom: connect.$2,
-          builder: (ctx, val2, _) => to(ctx, val1, val2),
-        );
-      },
-    );
+    return MultiSlot.t2(connect: connect, to: to);
   }
 }
 
-/// MultiSlot3 - Connect three signals at once.
-///
-/// ## Basic Usage
-///
-/// ```dart
-/// MultiSlot3<String, int, bool>(
-///   connect: (nameSignal, ageSignal, activeSignal),
-///   to: (context, name, age, active) {
-///     return Text('$name ($age) - ${active ? "Active" : "Inactive"}');
-///   },
-/// )
-/// ```
-class MultiSlot3<T1, T2, T3> extends StatelessWidget {
+class _LegacyMultiSlot3<T1, T2, T3> extends StatelessWidget {
   final (Signal<T1>, Signal<T2>, Signal<T3>) connect;
   final Widget Function(BuildContext context, T1 val1, T2 val2, T3 val3) to;
 
-  const MultiSlot3({
+  const _LegacyMultiSlot3({
     super.key,
     required this.connect,
     required this.to,
@@ -708,32 +1074,16 @@ class MultiSlot3<T1, T2, T3> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NeuronAtomBuilder<T1>(
-      atom: connect.$1,
-      builder: (ctx, val1, _) {
-        return NeuronAtomBuilder<T2>(
-          atom: connect.$2,
-          builder: (ctx, val2, _) {
-            return NeuronAtomBuilder<T3>(
-              atom: connect.$3,
-              builder: (ctx, val3, _) => to(ctx, val1, val2, val3),
-            );
-          },
-        );
-      },
-    );
+    return MultiSlot.t3(connect: connect, to: to);
   }
 }
 
-/// MultiSlot4 - Connect four signals at once.
-///
-/// See [MultiSlot2] for usage details.
-class MultiSlot4<T1, T2, T3, T4> extends StatelessWidget {
+class _LegacyMultiSlot4<T1, T2, T3, T4> extends StatelessWidget {
   final (Signal<T1>, Signal<T2>, Signal<T3>, Signal<T4>) connect;
   final Widget Function(
       BuildContext context, T1 val1, T2 val2, T3 val3, T4 val4) to;
 
-  const MultiSlot4({
+  const _LegacyMultiSlot4({
     super.key,
     required this.connect,
     required this.to,
@@ -741,37 +1091,16 @@ class MultiSlot4<T1, T2, T3, T4> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NeuronAtomBuilder<T1>(
-      atom: connect.$1,
-      builder: (ctx, val1, _) {
-        return NeuronAtomBuilder<T2>(
-          atom: connect.$2,
-          builder: (ctx, val2, _) {
-            return NeuronAtomBuilder<T3>(
-              atom: connect.$3,
-              builder: (ctx, val3, _) {
-                return NeuronAtomBuilder<T4>(
-                  atom: connect.$4,
-                  builder: (ctx, val4, _) => to(ctx, val1, val2, val3, val4),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
+    return MultiSlot.t4(connect: connect, to: to);
   }
 }
 
-/// MultiSlot5 - Connect five signals at once.
-///
-/// See [MultiSlot2] for usage details.
-class MultiSlot5<T1, T2, T3, T4, T5> extends StatelessWidget {
+class _LegacyMultiSlot5<T1, T2, T3, T4, T5> extends StatelessWidget {
   final (Signal<T1>, Signal<T2>, Signal<T3>, Signal<T4>, Signal<T5>) connect;
   final Widget Function(
       BuildContext context, T1 val1, T2 val2, T3 val3, T4 val4, T5 val5) to;
 
-  const MultiSlot5({
+  const _LegacyMultiSlot5({
     super.key,
     required this.connect,
     required this.to,
@@ -779,31 +1108,7 @@ class MultiSlot5<T1, T2, T3, T4, T5> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NeuronAtomBuilder<T1>(
-      atom: connect.$1,
-      builder: (ctx, val1, _) {
-        return NeuronAtomBuilder<T2>(
-          atom: connect.$2,
-          builder: (ctx, val2, _) {
-            return NeuronAtomBuilder<T3>(
-              atom: connect.$3,
-              builder: (ctx, val3, _) {
-                return NeuronAtomBuilder<T4>(
-                  atom: connect.$4,
-                  builder: (ctx, val4, _) {
-                    return NeuronAtomBuilder<T5>(
-                      atom: connect.$5,
-                      builder: (ctx, val5, _) =>
-                          to(ctx, val1, val2, val3, val4, val5),
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
-    );
+    return MultiSlot.t5(connect: connect, to: to);
   }
 }
 

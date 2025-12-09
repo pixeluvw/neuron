@@ -1,155 +1,173 @@
-/// Neuron - Signal/Slot State Management for Flutter
+/// # Neuron - Signal/Slot State Management for Flutter
 ///
-/// A powerful, clean reactive state management solution
-/// signal/slot mechanism. Features include:
+/// ═══════════════════════════════════════════════════════════════════════════════
 ///
-/// - **Clean Syntax**: Signal/Slot pattern with `emit()` and `connect()`
-/// - **StatelessWidget Only**: No StatefulWidget boilerplate
-/// - **Controller Pattern**: `static get init => Neuron.ensure(() => MyController())`
-/// - **Advanced Features**: Middleware, persistence, time-travel debugging
+/// Neuron is a powerful, elegant reactive state management library built around
+/// the Signal/Slot pattern. Write clean, maintainable Flutter apps with minimal
+/// boilerplate.
 ///
+/// ## Philosophy
+///
+/// **"Write less, do more, stay reactive."**
+///
+/// - **Signal**: A reactive value container that notifies when changed
+/// - **Slot**: A widget that rebuilds when connected signal emits
+/// - **Controller**: Business logic with auto-disposed signals
+///
+/// ## Why Neuron?
+///
+/// - ✅ **Clean Syntax**: `signal()`, `computed()`, `$()` factory methods
+/// - ✅ **StatelessWidget Only**: No boilerplate, just reactive bindings
+/// - ✅ **Auto-disposal**: Signals disposed with controllers
+/// - ✅ **Type-safe**: Full Dart 3 pattern matching support
+/// - ✅ **Feature-rich**: Persistence, middleware, DevTools, animations
 ///
 /// ## Quick Start
 ///
+/// ### Step 1: Create a Controller
+///
 /// ```dart
-/// // 1. Create a controller
 /// class CounterController extends NeuronController {
-///   late final count = Signal<int>(0).bind(this);
-///   late final doubled = Computed<int>(() => count.val * 2, [count]).bind(this);
+///   // Choose your syntax:
+///   // late final count = Signal<int>(0).bind(this);  // Verbose
+///   late final count = signal(0);                     // Clean (recommended)
+///   // late final count = $(0);                       // Ultra-short
+///
+///   // Computed values auto-track dependencies
+///   late final doubled = computed(() => count.val * 2);
+///   late final isEven = computed(() => count.val % 2 == 0);
 ///
 ///   void increment() => count.emit(count.val + 1);
 ///
+///   // Singleton pattern for DI
 ///   static CounterController get init =>
 ///       Neuron.ensure<CounterController>(() => CounterController());
 /// }
+/// ```
 ///
-/// // 2. Use in a StatelessWidget
+/// ### Step 2: Connect to UI
+///
+/// ```dart
 /// class CounterPage extends StatelessWidget {
 ///   @override
 ///   Widget build(BuildContext context) {
-///     final c = CounterController.init;
+///     final c = CounterController.init;  // Get or create controller
 ///
 ///     return Scaffold(
-///       body: Center(
-///         child: Column(
-///           children: [
-///             Slot<int>(
-///               connect: c.count,
-///               to: (context, value) => Text('Count: $value'),
-///             ),
-///             Slot<int>(
-///               connect: c.doubled,
-///               to: (context, value) => Text('Doubled: $value'),
-///             ),
-///             ElevatedButton(
-///               onPressed: c.increment,
-///               child: Text('Increment'),
-///             ),
-///           ],
-///         ),
+///       body: Column(
+///         children: [
+///           // Signal → Slot binding
+///           Slot<int>(
+///             connect: c.count,
+///             to: (ctx, val) => Text('Count: $val'),
+///           ),
+///           Slot<int>(
+///             connect: c.doubled,
+///             to: (ctx, val) => Text('Doubled: $val'),
+///           ),
+///           ElevatedButton(
+///             onPressed: c.increment,
+///             child: Text('Increment'),
+///           ),
+///         ],
 ///       ),
 ///     );
 ///   }
 /// }
+/// ```
 ///
-/// // 3. Run app
+/// ### Step 3: Run App
+///
+/// ```dart
 /// void main() {
 ///   runApp(NeuronApp(home: CounterPage()));
 /// }
 /// ```
 ///
-/// ## Features
+/// ## Feature Overview
 ///
-/// ### Signals
-/// - `Signal<T>` - Basic reactive value
-/// - `AsyncSignal<T>` - Async operations with loading/error states
-/// - `Computed<T>` - Derived values that auto-update
-/// - `ComputedAsync<T>` - Async computed values
-/// - `UndoableSignal<T>` - Undo/redo support
-/// - `FormSignal<T>` - Form fields with validation
-/// - `ListSignal<E>` - Reactive lists with mutation methods
-/// - `MapSignal<K,V>` - Reactive maps
-/// - `SetSignal<E>` - Reactive sets
+/// ### Signal Types
+///
+/// | Type              | Description                                    |
+/// |-------------------|------------------------------------------------|
+/// | `Signal<T>`       | Core reactive value                            |
+/// | `AsyncSignal<T>`  | Async operations (loading/data/error)          |
+/// | `Computed<T>`     | Derived values with auto-tracking              |
+/// | `ListSignal<E>`   | Reactive list with mutation methods            |
+/// | `MapSignal<K,V>`  | Reactive map                                   |
+/// | `SetSignal<E>`    | Reactive set                                   |
+/// | `UndoableSignal`  | Undo/redo support                              |
+/// | `FormSignal<T>`   | Form fields with validation                    |
+///
+/// ### Slot Widgets
+///
+/// | Widget            | Description                                    |
+/// |-------------------|------------------------------------------------|
+/// | `Slot<T>`         | Basic signal-to-widget binding                 |
+/// | `AsyncSlot<T>`    | Async signal with loading/error states         |
+/// | `AnimatedSlot<T>` | Auto-animated value transitions                |
+/// | `SpringSlot<T>`   | Physics-based spring animations                |
+/// | `MorphSlot<T>`    | Smooth widget morphing                         |
+/// | `PulseSlot<T>`    | Attention-grabbing pulse effects               |
+/// | `ShimmerSlot<T>`  | Loading shimmer animations                     |
+/// | `MultiSlot`       | Combine 2-6 signals (type-safe)                |
 ///
 /// ### Rate Limiting
-/// - `DebouncedSignal` - Delay emissions until quiet period
+///
+/// - `DebouncedSignal` - Delay until quiet period
 /// - `ThrottledSignal` - Limit emission frequency
 /// - `DistinctSignal` - Filter duplicate values
 ///
-/// ### UI Binding
-/// - `Slot<T>` - Connect signal to widget
-/// - `AsyncSlot<T>` - Connect async signal to widget
-/// - `SelectSlot<T,S>` - Granular rebuilds with selectors
-/// - `FormSlot<T>` - Reactive form handling with animations
-/// - `MorphSlot<T>` - Shape/widget morphing animations
-/// - `IconMorphSlot<T>` - Icon morphing transitions
-/// - `ShapeMorphSlot<T>` - Geometric shape morphing
-/// - `AnimatedSlot<T>` - Auto-animated value changes
-/// - `ConditionalSlot<T>` - Show/hide based on condition
-/// - `MultiSlot2/3/4/5` - Connect multiple signals at once
-/// - `TransitionSlot<T>` - Page transitions with effects
-/// - `DebounceSlot<T>` - Debounced rebuilds
-/// - `ThrottleSlot<T>` - Throttled rebuilds
-/// - `MemoizedSlot<T>` - Cached builds with custom equality
-/// - `LazySlot<T>` - Lazy build on first change
+/// ### Middleware & Persistence
 ///
-/// ### Middleware
 /// - `LoggingMiddleware` - Log value changes
 /// - `ValidationMiddleware` - Validate before emit
-/// - `ClampMiddleware` - Clamp numeric values
-/// - `TransformMiddleware` - Transform values
-/// - `SanitizationMiddleware` - Sanitize strings
-///
-/// ### Persistence
-/// - `PersistentSignal` - Auto-save/load
+/// - `PersistentSignal` - Auto-save to storage
 /// - `JsonPersistence` - JSON serialization
-/// - `SimplePersistence` - String-based storage
-/// - `MemoryPersistence` - In-memory (testing)
 ///
-/// ### Effects & Reactions
-/// - `effect()` - Run side effects on signal changes
-/// - `SignalReaction` - Side effects on changes
-/// - `SignalTransaction` - Batch updates
-/// - `SignalAction` - Async operations with state
-/// - `batch()` - Batch multiple signal updates
+/// ### Navigation (Context-less)
 ///
-/// ### Validation
-/// - `Validators.required()` - Required field
-/// - `Validators.email()` - Email validation
-/// - `Validators.minLength()` - Minimum length
-/// - `Validators.maxLength()` - Maximum length
-/// - `Validators.pattern()` - Regex pattern
-/// - `Validators.min()` - Minimum value
-/// - `Validators.max()` - Maximum value
-/// - `Validators.custom()` - Custom validation
+/// ```dart
+/// Neuron.to(DetailPage());        // Push
+/// Neuron.off(HomePage());         // Replace
+/// Neuron.back();                  // Pop
+/// Neuron.toNamed('/settings');    // Named route
+/// ```
 ///
-/// ### DevTools
-/// - `SignalDevTools` - Time-travel debugging
-/// - Event tracking and history
-/// - State inspection and export
+/// ### DevTools Integration
 ///
-/// ### Navigation
-/// - `Neuron.to(page)` - Push page
-/// - `Neuron.off(page)` - Replace page
-/// - `Neuron.back()` - Pop page
-/// - `Neuron.toNamed(route)` - Named routes
+/// Built-in debugging support:
+/// - Signal state inspection
+/// - Event history tracking
+/// - Time-travel debugging
+///
+/// ## More Information
+///
+/// - [README](https://github.com/pixeluvw/neuron) - Full documentation
+/// - [CHANGELOG](https://pub.dev/packages/neuron/changelog) - Version history
+/// - [Examples](https://github.com/pixeluvw/neuron/tree/master/example) - Sample apps
 ///
 library;
 
-// Core - Service locator, controller, and base slots
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXPORTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Core framework: Service locator, controller base, Slot/AsyncSlot widgets
 export 'src/neuron_core.dart';
 
-// Atom - Base reactive primitive
+/// Foundation: NeuronAtom base class, Disposable interface
 export 'src/neuron_atom.dart';
 
-// Signals - Reactive primitives (Signal, AsyncSignal, Computed)
+/// Signals: `Signal<T>`, `AsyncSignal<T>`, `Computed<T>`, `AsyncState<T>`
 export 'src/neuron_signals.dart';
 
-// Extensions - Advanced signals, middleware, persistence, UI slots
+/// Extensions: Collection signals, rate limiting, middleware, persistence,
+/// effects, DevTools, advanced slots (AnimatedSlot, SpringSlot, etc.)
 export 'src/neuron_extensions.dart';
 
-// Navigation
+/// Navigation: NeuronRoute, page transitions, middleware
 export 'src/neuron_navigation.dart';
 
-// Debug server
+/// Debug: Debug server, registry, snapshots for DevTools integration
 export 'src/debug/index.dart';

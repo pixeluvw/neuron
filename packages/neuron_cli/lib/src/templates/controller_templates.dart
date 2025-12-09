@@ -33,10 +33,9 @@ class ${rc.pascalCase}Controller extends NeuronController {
   // Computed - Derived values
   // ============================================
 
-  // Example computed signal:
+  // Example computed signal (auto-tracks dependencies):
   // late final derived = Computed<String>(
   //   () => '\${example.val} processed',
-  //   [example],
   // ).bind(this);
 
   // ============================================

@@ -38,7 +38,6 @@ class TestController extends NeuronController {
   // Computed signal
   late final doubled = Computed<int>(
     () => counter.val * 2,
-    [counter],
   );
 
   TestController() {

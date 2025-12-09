@@ -70,9 +70,11 @@ class SignalUtils {
   }
 
   /// Create a signal that caches computed values.
+  ///
+  /// The [ttl] (time-to-live) parameter specifies how long the cached value
+  /// remains valid before recomputation.
   static Computed<T> cached<T>(
-    T Function() compute,
-    List<NeuronAtom> dependencies, {
+    T Function() compute, {
     Duration? ttl,
   }) {
     T? cache;
@@ -91,7 +93,6 @@ class SignalUtils {
         cacheTime = now;
         return cache as T;
       },
-      dependencies,
     );
   }
 

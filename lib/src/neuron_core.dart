@@ -1,18 +1,54 @@
 // neuron_core.dart
 //
-// Neuron - Qt Signal/Slot State Management for Flutter
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEURON CORE - Framework Foundation
+// ═══════════════════════════════════════════════════════════════════════════════
 //
-// Core framework with all advanced features:
-// - Service locator: Neuron
-// - Base controller: NeuronController
-// - UI binding widgets: Slot, AsyncSlot
-// - App wrapper: NeuronApp
+// This file contains the core framework infrastructure for Neuron:
 //
-// Signals are now in neuron_signals.dart:
-// - Signal<T>, AsyncSignal<T>, Computed<T>
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ COMPONENT              │ DESCRIPTION                                     │
+// ├─────────────────────────┬───────────────────────────────────────────────────┤
+// │ Neuron (Service Locator)│ Global DI container & context-less navigation  │
+// │ NeuronController        │ Base class for business logic with lifecycle    │
+// │ Slot<T>                 │ Widget that rebuilds when signal emits          │
+// │ AsyncSlot<T>            │ Widget for async signal (loading/data/error)    │
+// │ NeuronApp               │ MaterialApp wrapper with DevTools integration   │
+// └─────────────────────────┴───────────────────────────────────────────────────┘
 //
-// Controllers expose: static MyController get init => Neuron.ensure<MyController>(() => MyController());
-// Views are StatelessWidget: final c = MyController.init;
+// SIGNAL/SLOT PATTERN:
+//
+//   Controller (Signal)  ───emit()───▶ Slot (Widget)
+//        │                              │
+//        └──── business logic          └──── rebuilds UI
+//
+// CONTROLLER LIFECYCLE:
+//
+//   Neuron.ensure<T>() ─▶ install() ─▶ onInit() ─▶ ... ─▶ onClose() ─▶ dispose()
+//                           │
+//                           └─▶ Registers signals for auto-disposal
+//
+// SIGNAL CREATION PATTERNS:
+//
+//   // Verbose (explicit)
+//   late final count = Signal<int>(0).bind(this);
+//
+//   // Clean (recommended)
+//   late final count = signal(0);
+//
+//   // Ultra-short
+//   late final count = $(0);
+//
+// EXTENSIONS PROVIDED:
+// - NeuronControllerSignals  : signal(), asyncSignal(), computed()
+// - NeuronControllerShorthand : $(), $async(), $computed()
+//
+// See also:
+// - neuron_signals.dart : Signal, AsyncSignal, Computed definitions
+// - neuron_navigation.dart : Advanced routing and navigation
+// - neuron_extensions.dart : Collection signals, effects, middleware
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
@@ -416,12 +452,34 @@ class Neuron {
 /// ## Auto-disposal
 ///
 /// Any signal that calls [SignalBinding.bind] with the controller will be
-/// automatically disposed when the controller is disposed:
+/// automatically disposed when the controller is disposed.
+///
+/// ## Signal Creation Syntax
+///
+/// Three equivalent ways to create bound signals:
 ///
 /// ```dart
 /// class MyController extends NeuronController {
-///   late final count = Signal<int>(0).bind(this);
-///   late final doubled = Computed<int>(() => count.val * 2, [count]).bind(this);
+///   // 1. Verbose: explicit constructor + bind
+///   late final count1 = Signal<int>(0).bind(this);
+///
+///   // 2. Clean: factory methods (recommended)
+///   late final count2 = signal(0);
+///   late final doubled = computed(() => count2.val * 2);
+///   late final user = asyncSignal<User>();
+///
+///   // 3. Ultra-short: $ prefix
+///   late final count3 = $(0);
+///   late final tripled = $computed(() => count3.val * 3);
+///   late final posts = $async<List<Post>>();
+/// }
+/// ```
+///
+/// ## Lifecycle Hooks
+///
+/// ```dart
+/// class MyController extends NeuronController {
+///   late final count = signal(0);
 ///
 ///   @override
 ///   void onInit() {
@@ -590,6 +648,185 @@ extension SignalBinding<T extends NeuronAtom<S>, S> on T {
 }
 
 /// ============================================================================
+/// 3b. CONTROLLER SIGNAL FACTORY EXTENSIONS
+/// ============================================================================
+
+/// Extension providing convenient signal factory methods on [NeuronController].
+///
+/// This extension allows creating signals with automatic binding in a single call,
+/// reducing boilerplate from `Signal<T>(value).bind(this)` to `signal(value)`.
+///
+/// ## Usage
+///
+/// ```dart
+/// class CounterController extends NeuronController {
+///   // Before: verbose syntax
+///   late final count = Signal<int>(0).bind(this);
+///
+///   // After: clean factory syntax
+///   late final count = signal(0);
+///   late final name = signal('');
+///   late final isActive = signal(false);
+///
+///   // Async signals
+///   late final user = asyncSignal<User>();
+///
+///   // Computed values
+///   late final doubled = computed(() => count.val * 2);
+/// }
+/// ```
+extension NeuronControllerSignals on NeuronController {
+  /// Creates a [Signal] and automatically binds it to this controller.
+  ///
+  /// Example:
+  /// ```dart
+  /// late final count = signal(0);
+  /// late final name = signal<String>('');
+  /// ```
+  Signal<T> signal<T>(
+    T initial, {
+    String? debugLabel,
+    bool Function(T prev, T next)? equals,
+    T Function(T current, T next)? guard,
+    VoidCallback? onListen,
+    VoidCallback? onCancel,
+  }) {
+    return Signal<T>(
+      initial,
+      debugLabel: debugLabel,
+      equals: equals,
+      guard: guard,
+      onListen: onListen,
+      onCancel: onCancel,
+    ).bind(this);
+  }
+
+  /// Creates an [AsyncSignal] and automatically binds it to this controller.
+  ///
+  /// Optionally provide initial data. Use [AsyncSignal.execute] to load data.
+  ///
+  /// Example:
+  /// ```dart
+  /// late final user = asyncSignal<User>();
+  ///
+  /// void loadUser() {
+  ///   user.execute(() => api.fetchUser());
+  /// }
+  /// ```
+  AsyncSignal<T> asyncSignal<T>({
+    T? initial,
+    String? debugLabel,
+  }) {
+    return AsyncSignal<T>(
+      initial,
+      debugLabel: debugLabel,
+    ).bind(this);
+  }
+
+  /// Creates a [Computed] signal and automatically binds it to this controller.
+  ///
+  /// Computed values are lazily evaluated and automatically track dependencies.
+  ///
+  /// Example:
+  /// ```dart
+  /// late final count = signal(0);
+  /// late final doubled = computed(() => count.val * 2);
+  /// late final message = computed(() => 'Count is ${count.val}');
+  /// ```
+  Computed<T> computed<T>(
+    T Function() computation, {
+    String? debugLabel,
+  }) {
+    return Computed<T>(
+      computation,
+      debugLabel: debugLabel,
+    ).bind(this);
+  }
+}
+
+/// Extension providing ultra-short signal factory methods on [NeuronController].
+///
+/// This extension uses `$` prefix for maximum brevity. Choose this style
+/// if you prefer concise code and your team is familiar with the convention.
+///
+/// ## Usage
+///
+/// ```dart
+/// class CounterController extends NeuronController {
+///   late final count = $(0);           // Signal<int>
+///   late final name = $('');           // Signal<String>
+///   late final user = $async<User>();
+///   late final doubled = $computed(() => count.val * 2);
+/// }
+/// ```
+///
+/// ## Comparison
+///
+/// | Verbose                           | Clean           | Short       |
+/// |-----------------------------------|-----------------|-------------|
+/// | `Signal<int>(0).bind(this)`       | `signal(0)`     | `$(0)`      |
+/// | `AsyncSignal<T>().bind(this)`     | `asyncSignal<T>()` | `$async<T>()` |
+/// | `Computed(() => x).bind(this)`    | `computed(() => x)` | `$computed(() => x)` |
+extension NeuronControllerShorthand on NeuronController {
+  /// Creates a [Signal] with ultra-short syntax.
+  ///
+  /// Example:
+  /// ```dart
+  /// late final count = $(0);
+  /// late final name = $<String>('');
+  /// ```
+  Signal<T> $<T>(
+    T initial, {
+    String? debugLabel,
+    bool Function(T prev, T next)? equals,
+    T Function(T current, T next)? guard,
+    VoidCallback? onListen,
+    VoidCallback? onCancel,
+  }) {
+    return Signal<T>(
+      initial,
+      debugLabel: debugLabel,
+      equals: equals,
+      guard: guard,
+      onListen: onListen,
+      onCancel: onCancel,
+    ).bind(this);
+  }
+
+  /// Creates an [AsyncSignal] with ultra-short syntax.
+  ///
+  /// Example:
+  /// ```dart
+  /// late final user = $async<User>();
+  /// ```
+  AsyncSignal<T> $async<T>({
+    T? initial,
+    String? debugLabel,
+  }) {
+    return AsyncSignal<T>(
+      initial,
+      debugLabel: debugLabel,
+    ).bind(this);
+  }
+
+  /// Creates a [Computed] signal with ultra-short syntax.
+  ///
+  /// Example:
+  /// ```dart
+  /// late final doubled = $computed(() => count.val * 2);
+  /// ```
+  Computed<T> $computed<T>(
+    T Function() computation, {
+    String? debugLabel,
+  }) {
+    return Computed<T>(
+      computation,
+      debugLabel: debugLabel,
+    ).bind(this);
+  }
+}
+
+/// ============================================================================
 /// 4. SLOT WIDGETS (BINDING SIGNALS TO UI)
 /// ============================================================================
 
@@ -737,7 +974,7 @@ class _SlotState<T> extends State<Slot<T>> {
 
 /// A widget that rebuilds when an [AsyncSignal] changes.
 ///
-/// Handles the different states of an [AsyncSnapshot]: data, error, and loading.
+/// Handles the different states of an [AsyncState]: data, error, and loading.
 ///
 /// ## Basic Usage
 ///
@@ -777,13 +1014,13 @@ class AsyncSlot<T> extends StatefulWidget {
 }
 
 class _AsyncSlotState<T> extends State<AsyncSlot<T>> {
-  late AsyncSnapshot<T> _snapshot;
+  late AsyncState<T> _state;
   VoidCallback? _cancel;
 
   @override
   void initState() {
     super.initState();
-    _snapshot = widget.connect.value;
+    _state = widget.connect.state;
     _subscribe();
   }
 
@@ -791,7 +1028,7 @@ class _AsyncSlotState<T> extends State<AsyncSlot<T>> {
     _cancel = widget.connect.subscribe(() {
       if (mounted) {
         setState(() {
-          _snapshot = widget.connect.value;
+          _state = widget.connect.state;
         });
       }
     });
@@ -802,7 +1039,7 @@ class _AsyncSlotState<T> extends State<AsyncSlot<T>> {
     super.didUpdateWidget(oldWidget);
     if (widget.connect != oldWidget.connect) {
       _cancel?.call();
-      _snapshot = widget.connect.value;
+      _state = widget.connect.state;
       _subscribe();
     }
   }
@@ -815,23 +1052,20 @@ class _AsyncSlotState<T> extends State<AsyncSlot<T>> {
 
   @override
   Widget build(BuildContext context) {
-    if (_snapshot.hasError) {
-      return widget.onError?.call(context, _snapshot.error!) ??
-          Center(
-            child: Text(
-              "Error: ${_snapshot.error}",
-              style: const TextStyle(color: Colors.red),
+    return switch (_state) {
+      AsyncLoading<T>() =>
+        widget.onLoading?.call(context) ??
+            const Center(child: CircularProgressIndicator()),
+      AsyncData<T>(:final value) => widget.onData(context, value),
+      AsyncError<T>(:final error) =>
+        widget.onError?.call(context, error) ??
+            Center(
+              child: Text(
+                "Error: $error",
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
-          );
-    }
-    if (_snapshot.connectionState == ConnectionState.waiting) {
-      return widget.onLoading?.call(context) ??
-          const Center(child: CircularProgressIndicator());
-    }
-    if (_snapshot.hasData) {
-      return widget.onData(context, _snapshot.data as T);
-    }
-    return const SizedBox.shrink();
+    };
   }
 }
 

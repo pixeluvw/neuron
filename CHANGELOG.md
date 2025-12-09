@@ -5,54 +5,72 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-11-21
+## [1.2.0] - 2025-12-09
 
 ### Added
-- Initial release of Neuron state management framework
-- Core reactive primitives: `Signal<T>`, `AsyncSignal<T>`, `Computed<T>`
-- Specialized collection signals: `ListSignal<E>`, `MapSignal<K,V>`, `SetSignal<E>`
-- Rate limiting signals: `DebouncedSignal`, `ThrottledSignal`, `DistinctSignal`
-- Middleware system with built-in middlewares:
-  - `LoggingMiddleware` - Log value changes
-  - `ValidationMiddleware` - Validate before emit
-  - `ClampMiddleware` - Clamp numeric values
-  - `TransformMiddleware` - Transform values
-  - `SanitizationMiddleware` - Sanitize strings
-- Persistence adapters:
-  - `PersistentSignal` - Auto-save/load
-  - `JsonPersistence` - JSON serialization
-  - `SimplePersistence` - String-based storage
-  - `MemoryPersistence` - In-memory (testing)
-- Effects and reactions:
-  - `SignalReaction` - Side effects on changes
-  - `SignalTransaction` - Batch updates
-  - `SignalAction` - Async operations with state
-- DevTools integration:
-  - `SignalDevTools` - Time-travel debugging
-  - Event tracking and history
-  - State inspection and export
-- Widget integration:
-  - `Slot<T>` - Connect signals to UI
-  - `AsyncSlot<T>` - Handle async states
-  - `NeuronApp` - MaterialApp wrapper
-- Service locator:
-  - `Neuron` - Global controller registry
-  - `NeuronController` - Base controller with lifecycle
-  - Auto-disposal with `.bind()`
-- Context-less navigation:
-  - `Neuron.to()`, `Neuron.off()`, `Neuron.back()`
-  - `Neuron.toNamed()`, `Neuron.offNamed()`
-- Utility methods via `SignalUtils`
-- Extension methods on signals
-- Comprehensive example app
-- Full documentation and README
 
-### Design Philosophy
-- Signal/Slot terminology and concepts
-- StatelessWidget-only approach (no StatefulWidget)
-- Static `init` pattern for controllers
-- Clean, predictable API
-- Type-safe and compile-time checked
+#### Controller Signal Factory Extensions
+New ergonomic syntax for creating signals inside controllers, eliminating boilerplate:
+
+**Option 1: Clean Factory Methods** (`NeuronControllerSignals`)
+```dart
+class MyController extends NeuronController {
+  late final count = signal(0);              // Signal<int>
+  late final user = asyncSignal<User>();     // AsyncSignal<User>
+  late final doubled = computed(() => count.val * 2);  // Computed<int>
+}
+```
+
+**Option 2: Ultra-Short Syntax** (`NeuronControllerShorthand`)
+```dart
+class MyController extends NeuronController {
+  late final count = $(0);                   // Signal<int>
+  late final user = $async<User>();          // AsyncSignal<User>
+  late final doubled = $computed(() => count.val * 2);
+}
+```
+
+#### Sealed AsyncState Class
+- New pure-Dart `AsyncState<T>` sealed class with `AsyncLoading`, `AsyncData`, and `AsyncError` subtypes
+- Pattern matching support for exhaustive state handling:
+```dart
+user.state.when(
+  loading: () => print('Loading...'),
+  data: (user) => print('Got user: $user'),
+  error: (e, st) => print('Error: $e'),
+);
+```
+
+#### Auto-Tracking Computed Signals
+- `Computed<T>` now automatically detects dependencies—no manual dependency list required
+- Lazy evaluation: computed values only calculate when accessed
+- Error handling: computation errors are captured and accessible via `hasError`, `error`, `stackTrace`
+- Circular dependency detection with clear error messages
+
+#### AsyncSignal Improvements
+- New `refresh()` method to re-execute the last operation
+- `canRefresh` getter to check if refresh is available
+- Cleaner API using sealed `AsyncState<T>` internally
+
+#### Unified MultiSlot Widget
+- Consolidated `MultiSlot2`, `MultiSlot3`, `MultiSlot4`, `MultiSlot5` into single `MultiSlot` class
+- Factory constructors: `MultiSlot.t2()`, `MultiSlot.t3()`, `MultiSlot.t4()`, `MultiSlot.t5()`, `MultiSlot.t6()`
+- Dynamic list support: `MultiSlot.list()` for any number of signals
+
+### Changed
+- **Signal dependency tracking**: `Signal.value` getter now registers with `_DependencyTracker` for Computed auto-tracking
+- **NeuronAtom lifecycle**: Added `@protected` `onActive()` and `onInactive()` lifecycle hooks for subclass customization
+- **notifyListeners() optimization**: Avoids list allocation when listeners aren't modified during notification
+
+### Fixed
+- **Computed reactivity**: Fixed issue where Computed signals weren't detecting changes to Signal dependencies
+- **Deprecation warning**: Replaced `Color.withOpacity()` with `Color.withValues()` in example app
+
+### Documentation
+- Comprehensive README rewrite with extensive Signal/Slot examples
+- Comparison table vs other state management solutions
+- Real-world examples: E-commerce cart, authentication flow, form validation, debounced search
+- Added detailed Widget Guide section
 
 ## [1.1.13] - 2025-12-07
 

@@ -1,29 +1,268 @@
-import 'dart:ui';
+// neuron_atom.dart
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEURON ATOM - Foundation Reactive Container
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// NeuronAtom<T> is the foundational building block of the Neuron reactive
+// system. It provides a lightweight, observable value container that serves
+// as the base class for Signal<T>, AsyncSignal<T>, and Computed<T>.
+//
+// KEY FEATURES:
+// - 🔔 Listener Management  : Add/remove/subscribe to value changes
+// - 🛡️ Value Guards        : Intercept and transform values before emission
+// - ⚖️  Custom Equality     : Control when listeners are notified
+// - 🔄 Reset Support       : Return to initial value
+// - 🧹 Auto-disposal       : Clean up resources when done
+// - 🎯 Selective Listening : Create derived atoms that watch specific fields
+//
+// INHERITANCE HIERARCHY:
+//   NeuronAtom<T>
+//      ├── Signal<T>       : Synchronous reactive value
+//      ├── AsyncSignal<T>  : Async state (loading/data/error)
+//      └── Computed<T>     : Derived value with auto-tracking
+//
+// LIFECYCLE HOOKS:
+//   onActive()   - Called when first listener subscribes
+//   onInactive() - Called when last listener unsubscribes
+//
+// These hooks enable lazy resource management (e.g., WebSocket connections,
+// stream subscriptions) that only activate when the atom is being observed.
+//
+// EXAMPLE:
+// ```dart
+// final counter = NeuronAtom<int>(0);
+//
+// // Subscribe and auto-unsubscribe
+// final cancel = counter.subscribe(() {
+//   print('Counter: ${counter.value}');
+// });
+//
+// counter.value = 1; // Prints: Counter: 1
+// counter.value = 2; // Prints: Counter: 2
+// cancel();          // Unsubscribes
+// ```
+//
+// See also:
+// - neuron_signals.dart : Signal, AsyncSignal, Computed definitions
+// - neuron_core.dart    : NeuronController and binding utilities
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 
-/// Interface for objects that need to be disposed.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import 'dart:ui';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:meta/meta.dart';
+
+/// Interface for objects that need cleanup when no longer used.
+///
+/// Classes implementing [Disposable] should release resources, cancel
+/// subscriptions, and perform cleanup in their [dispose] method.
+///
+/// ## Usage
+///
+/// ```dart
+/// class MyResource implements Disposable {
+///   StreamSubscription? _subscription;
+///
+///   void start() {
+///     _subscription = someStream.listen(...);
+///   }
+///
+///   @override
+///   void dispose() {
+///     _subscription?.cancel();
+///     _subscription = null;
+///   }
+/// }
+/// ```
+///
+/// **Important**: Always call [dispose] when the object is no longer needed
+/// to prevent memory leaks.
 abstract class Disposable {
+  /// Releases resources held by this object.
+  ///
+  /// After calling [dispose], the object should not be used.
   void dispose();
 }
 
-/// A modern, lightweight reactive value container that replaces Flutter's ValueNotifier.
+/// Global error handler for Neuron framework errors.
 ///
-/// [NeuronAtom] holds a value of type [T] and notifies listeners when the value changes.
-/// It provides a cleaner API for subscription management and is designed to be
-/// the foundation of the Neuron reactive system.
+/// This handler is called when errors occur in listeners or other Neuron
+/// operations. Override this to customize error reporting, logging,
+/// or crash analytics integration.
+///
+/// ## Default Behavior
+///
+/// By default, errors are printed only in debug mode to avoid cluttering
+/// release builds. Override for custom behavior:
+///
+/// ## Customization
+///
+/// ```dart
+/// void main() {
+///   // Send errors to crash reporting service
+///   neuronErrorHandler = (message, error, stackTrace) {
+///     FirebaseCrashlytics.instance.recordError(error, stackTrace);
+///   };
+///
+///   runApp(MyApp());
+/// }
+/// ```
+///
+/// ## Parameters
+///
+/// - [message]: Context about where the error occurred
+/// - [error]: The actual error/exception object
+/// - [stackTrace]: Stack trace if available (may be null)
+void Function(String message, Object error, StackTrace? stackTrace)
+    neuronErrorHandler = _defaultErrorHandler;
+
+void _defaultErrorHandler(String message, Object error, StackTrace? stackTrace) {
+  if (kDebugMode) {
+    // ignore: avoid_print
+    print('$message: $error');
+    if (stackTrace != null) {
+      // ignore: avoid_print
+      print(stackTrace);
+    }
+  }
+}
+
+/// A modern, lightweight reactive value container.
+///
+/// [NeuronAtom] is the foundation of Neuron's reactive system. It holds a
+/// value of type [T] and notifies listeners when the value changes. Think of
+/// it as a smarter version of Flutter's `ValueNotifier` with additional features.
+///
+/// ## Core Features
+///
+/// - **Value observation**: Listeners are notified when value changes
+/// - **Equality checking**: Custom equality to control when listeners fire
+/// - **Value guards**: Transform or validate values before emission
+/// - **Initial value**: Access original value via [initialValue]
+/// - **Previous value**: Track changes via [previousValue]
+/// - **Lifecycle hooks**: [onActive] and [onInactive] for resource management
+///
+/// ## Basic Usage
+///
+/// ```dart
+/// final counter = NeuronAtom<int>(0);
+///
+/// // Listen to changes
+/// final cancel = counter.subscribe(() {
+///   print('New value: ${counter.value}');
+/// });
+///
+/// counter.value = 1;  // Prints: New value: 1
+/// counter.value = 1;  // No print (value unchanged)
+/// counter.value = 2;  // Prints: New value: 2
+///
+/// cancel(); // Stop listening
+/// ```
+///
+/// ## Custom Equality
+///
+/// Control when listeners are notified:
+///
+/// ```dart
+/// final user = NeuronAtom<User>(
+///   User(id: 1),
+///   equals: (a, b) => a.id == b.id,  // Only notify if ID changes
+/// );
+/// ```
+///
+/// ## Value Guards
+///
+/// Transform or validate values before emission:
+///
+/// ```dart
+/// final percentage = NeuronAtom<int>(
+///   50,
+///   guard: (current, next) => next.clamp(0, 100),  // Ensure 0-100 range
+/// );
+///
+/// percentage.value = 150;  // Actually sets to 100
+/// ```
+///
+/// ## Selective Listening
+///
+/// Create derived atoms that only update for specific changes:
+///
+/// ```dart
+/// final user = NeuronAtom<User>(User(name: 'Alice', age: 30));
+/// final nameOnly = user.select((u) => u.name);  // Only fires on name change
+/// ```
+///
+/// **Note**: For most use cases, use [Signal<T>] instead, which extends
+/// [NeuronAtom] with stream support and controller binding.
+///
+/// See also:
+/// - [Signal] - Preferred reactive value with stream support
+/// - [AsyncSignal] - For async operations
+/// - [Computed] - For derived values
 class NeuronAtom<T> implements Disposable {
+  /// Current value stored in this atom.
   T _value;
+
+  /// The value this atom was initialized with (for [reset]).
   final T _initialValue;
+
+  /// The value before the most recent change (null if never changed).
   T? _previousValue;
 
+  /// List of callbacks to invoke when value changes.
   final List<VoidCallback> _listeners = [];
+
+  /// Flag indicating this atom has been disposed and should not be used.
   bool _disposed = false;
 
-  // Configuration
+  /// Whether this atom has been disposed.
+  @protected
+  bool get isDisposed => _disposed;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Configuration Options
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Custom equality function to determine if value has changed.
+  ///
+  /// If provided, this function is called instead of `==` operator.
+  /// Return `true` if values should be considered equal (no notification).
+  ///
+  /// ```dart
+  /// NeuronAtom<User>(
+  ///   user,
+  ///   equals: (a, b) => a.id == b.id,
+  /// )
+  /// ```
   final bool Function(T a, T b)? equals;
+
+  /// Value guard/transformer called before setting a new value.
+  ///
+  /// Use this to validate, clamp, or transform values:
+  ///
+  /// ```dart
+  /// NeuronAtom<int>(
+  ///   50,
+  ///   guard: (current, next) => next.clamp(0, 100),
+  /// )
+  /// ```
   final T Function(T current, T next)? guard;
 
-  // Lifecycle hooks
+  // ─────────────────────────────────────────────────────────────────────────
+  // Lifecycle Callbacks
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Callback invoked when the first listener subscribes.
+  ///
+  /// Use this to start expensive resources only when needed.
   final VoidCallback? onListen;
+
+  /// Callback invoked when the last listener unsubscribes.
+  ///
+  /// Use this to clean up resources when no one is listening.
   final VoidCallback? onCancel;
 
   /// Creates a [NeuronAtom] with an initial value.
@@ -78,7 +317,7 @@ class NeuronAtom<T> implements Disposable {
     _listeners.add(listener);
 
     if (wasEmpty) {
-      _onActive();
+      onActive();
     }
   }
 
@@ -89,7 +328,7 @@ class NeuronAtom<T> implements Disposable {
     _listeners.remove(listener);
 
     if (_listeners.isEmpty) {
-      _onInactive();
+      onInactive();
     }
   }
 
@@ -102,6 +341,7 @@ class NeuronAtom<T> implements Disposable {
   /// cancel();
   /// ```
   VoidCallback subscribe(VoidCallback listener) {
+    assert(!_disposed, 'Cannot subscribe to a disposed NeuronAtom');
     addListener(listener);
     return () => removeListener(listener);
   }
@@ -111,20 +351,40 @@ class NeuronAtom<T> implements Disposable {
   /// Use this if you need to trigger updates even if the value hasn't changed,
   /// or if the value is mutable and has been modified internally.
   void notifyListeners() {
+    assert(!_disposed, 'Cannot notify listeners on a disposed NeuronAtom');
     if (_disposed) return;
     if (_listeners.isEmpty) return;
 
-    // Copy the list to allow listeners to be added/removed during notification
-    final localListeners = List<VoidCallback>.from(_listeners);
+    // Track if listeners are modified during notification
+    bool listenersModified = false;
+    final originalLength = _listeners.length;
 
-    for (final listener in localListeners) {
-      try {
-        if (_listeners.contains(listener)) {
-          listener();
+    // Iterate with index to avoid allocation when no modification occurs
+    for (int i = 0; i < _listeners.length; i++) {
+      // Check if listeners were modified (added/removed)
+      if (_listeners.length != originalLength) {
+        listenersModified = true;
+      }
+
+      // If modified, switch to safe copy-based iteration for remaining listeners
+      if (listenersModified) {
+        final remaining = List<VoidCallback>.from(_listeners.skip(i));
+        for (final listener in remaining) {
+          try {
+            if (_listeners.contains(listener)) {
+              listener();
+            }
+          } catch (e, st) {
+            neuronErrorHandler('Error in NeuronAtom listener', e, st);
+          }
         }
-      } catch (e) {
-        // ignore: avoid_print
-        print('Error in NeuronAtom listener: $e');
+        break;
+      }
+
+      try {
+        _listeners[i]();
+      } catch (e, st) {
+        neuronErrorHandler('Error in NeuronAtom listener', e, st);
       }
     }
   }
@@ -141,12 +401,24 @@ class NeuronAtom<T> implements Disposable {
   bool get hasListeners => _listeners.isNotEmpty;
 
   /// Called when the first listener is added.
-  void _onActive() {
+  ///
+  /// Override this method in subclasses to perform setup when the atom
+  /// becomes active (has at least one listener). Call super to invoke
+  /// the [onListen] callback.
+  @protected
+  @mustCallSuper
+  void onActive() {
     onListen?.call();
   }
 
   /// Called when the last listener is removed.
-  void _onInactive() {
+  ///
+  /// Override this method in subclasses to perform cleanup when the atom
+  /// becomes inactive (has no listeners). Call super to invoke
+  /// the [onCancel] callback.
+  @protected
+  @mustCallSuper
+  void onInactive() {
     onCancel?.call();
   }
 
@@ -185,8 +457,8 @@ class _SelectedAtom<T, R> extends NeuronAtom<R> {
   }
 
   @override
-  void _onActive() {
-    super._onActive();
+  void onActive() {
+    super.onActive();
 
     // 1. SYNC: Update value immediately in case parent changed while we were sleeping
     final freshValue = selector(parent.value);
@@ -203,8 +475,8 @@ class _SelectedAtom<T, R> extends NeuronAtom<R> {
   }
 
   @override
-  void _onInactive() {
-    super._onInactive();
+  void onInactive() {
+    super.onInactive();
     // Unsubscribe from parent when we have no listeners
     _cleanup?.call();
     _cleanup = null;

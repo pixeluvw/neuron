@@ -136,7 +136,7 @@ class NeuronPerformanceMonitor {
     // Benchmark 3: Computed signal performance
     final computedStopwatch = Stopwatch()..start();
     final source = Signal<int>(0);
-    final computed = Computed(() => source.val * 2, [source]);
+    final computed = Computed(() => source.val * 2);
     for (int i = 0; i < 5000; i++) {
       source.emit(i);
       computed.value; // Force recomputation

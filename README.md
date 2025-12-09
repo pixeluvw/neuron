@@ -5,309 +5,296 @@
 Neuron is a powerful, elegant reactive state management solution built around the Signal/Slot pattern. Designed for simplicity, performance, and exceptional developer experience.
 
 [![Pub](https://img.shields.io/pub/v/neuron.svg)](https://pub.dev/packages/neuron)
-[![Tests](https://img.shields.io/badge/tests-73%20passing-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/tests-86%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](test/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![style: flutter_lints](https://img.shields.io/badge/style-flutter__lints-blue)](https://pub.dev/packages/flutter_lints)
 
-## 🧠 What is Neuron?
+---
 
-Neuron brings **reactive programming** to Flutter with an intuitive Signal/Slot architecture. Think of **Signals** as reactive data containers that automatically notify their listeners when values change, and **Slots** as UI components that automatically rebuild when connected signals update.
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 2: WHY NEURON?
+     Explains the philosophy behind Neuron and its key benefits
+     ═══════════════════════════════════════════════════════════════════════════════ -->
 
-### The Signal/Slot Philosophy
+## 🤔 Why Neuron?
 
-Neuron's architecture connects **Signals** (reactive data) to **Slots** (reactive UI) through **NeuronController**:
+### Neuron's Philosophy
 
-```
-NeuronController  ──────►  Slot Widget
-(defines Signals)  connect:  (rebuilds UI)
-```
+**"Write less, do more, stay reactive."**
 
-#### Step 1: Define Signals in a Controller
+Neuron brings the battle-tested **Signal/Slot** pattern from Qt to Flutter. This pattern has powered desktop applications for 30+ years because it's:
 
-**Signals** are reactive values defined inside a `NeuronController`. They emit changes when updated:
+- **Intuitive**: Signals emit values, Slots receive them
+- **Decoupled**: Signals don't know about Slots, and vice versa
+- **Efficient**: Only connected components update
+- **Predictable**: Data flows in one direction
+
+### Key Benefits
+
+| Feature | Neuron |
+|---------|--------|
+| Boilerplate | **Minimal** |
+| Learning curve | **Gentle** |
+| Type safety | **Excellent** |
+| Fine-grained rebuilds | **Yes** |
+| Context dependency | **No** |
+| Memory management | **Automatic** |
+| Async handling | **Built-in** |
+| Animations | **Built-in** |
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 3: UNDERSTANDING SIGNALS & SLOTS
+     Core concepts - what Signals and Slots are and how they connect
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+## 🧠 Understanding Signals & Slots
+
+### What is a Signal?
+
+A **Signal** is a reactive container that holds a value and notifies listeners when it changes. Think of it as a "smart variable" that broadcasts its changes.
 
 ```dart
+// Create a Signal
+final count = Signal<int>(0);
+
+// Read the value
+print(count.val);  // 0
+
+// Update the value (notifies all listeners)
+count.emit(5);     // All listeners receive 5
+
+// Listen to changes
+count.addListener(() => print('Changed to: ${count.val}'));
+```
+
+### What is a Slot?
+
+A **Slot** is a widget that "plugs into" a Signal and automatically rebuilds when the Signal changes. It's the bridge between your reactive data and the UI.
+
+```dart
+Slot<int>(
+  connect: count,  // Plug into the Signal
+  to: (context, value) => Text('Count: $value'),  // Build UI
+)
+```
+
+### The Connection
+
+```
+┌─────────────────┐         ┌─────────────────┐
+│     SIGNAL      │         │      SLOT       │
+│                 │ connect │                 │
+│  count.emit(5)  │ ───────►│  Text('5')      │
+│                 │         │  rebuilds       │
+└─────────────────┘         └─────────────────┘
+```
+
+When you call `count.emit(5)`, **only** the Slot widgets connected to `count` rebuild—not the entire widget tree. This is fine-grained reactivity.
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 4: WHY DEVELOPERS LOVE NEURON
+     Showcases the main features with code examples
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+## ✨ Why Developers Love Neuron
+
+### 1. Zero Boilerplate
+
+```dart
+// controller.dart
 class CounterController extends NeuronController {
-  // Signal defined and bound to controller lifecycle
-  late final count = Signal<int>(0).bind(this);
+  // Choose your style:
+  late final count = Signal<int>(0).bind(this);  // Explicit
+  late final count = signal(0);                   // Clean ✨
+  late final count = $(0);                        // Ultra-short
   
-  // Primary API: emit()
   void increment() => count.emit(count.val + 1);
   void decrement() => count.emit(count.val - 1);
-  void reset()     => count.emit(0);
   
-  // Convenient shortcuts also available:
-  // count.inc(), count.dec()        — short aliases
-  // count.add(5), count.sub(3)      — add/subtract amount
-  // count.increment(), count.decrement()  — full names
-  
-  // Static getter provides access to the controller instance
-  static CounterController get init =>
-      Neuron.ensure<CounterController>(() => CounterController());
+  static CounterController get init => Neuron.ensure(() => CounterController());
 }
+
+// widget.dart
+Slot<int>(
+  connect: CounterController.init.count,
+  to: (_, val) => Text('$val'),
+)
 ```
 
-#### Step 2: Access Controller in Widget
+**Result**: Clean, readable, minimal code.
 
-In your widget, get the controller instance via the static `init` getter:
+### 2. No BuildContext Required
+
+Access your controllers from anywhere—services, utils, or other controllers:
 
 ```dart
-class CounterPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final c = CounterController.init;  // Access controller
-    // Now c.count is the Signal you connect to Slots
-    ...
+// In a service
+class AnalyticsService {
+  void trackClick() {
+    final count = CounterController.init.count.val;
+    analytics.log('button_click', {'count': count});
+  }
+}
+
+// In another controller
+class DashboardController extends NeuronController {
+  void syncData() {
+    final userCount = UserController.init.users.val.length;
+    final orderCount = OrderController.init.orders.val.length;
+    // No context needed!
   }
 }
 ```
 
-#### Step 3: Connect Signal to Slot
+### 3. Built-in Async Handling
 
-The `connect:` parameter expects a Signal. Pass `c.count` (the Signal from your controller):
+No more juggling loading states and error handling:
 
 ```dart
-Slot<int>(
-  connect: c.count,  // ← This is the Signal from the controller
-  to: (context, value) => Text('Count: $value'),
+class UserController extends NeuronController {
+  late final user = asyncSignal<User>();
+  
+  Future<void> loadUser(String id) async {
+    await user.execute(() => api.fetchUser(id));
+  }
+  
+  static UserController get init => Neuron.ensure(() => UserController());
+}
+
+// In UI - handles loading, error, and data states automatically
+AsyncSlot<User>(
+  connect: UserController.init.user,
+  onLoading: (_) => CircularProgressIndicator(),
+  onError: (_, error) => Text('Error: $error'),
+  onData: (_, user) => UserCard(user),
 )
 ```
 
-The **Slot** subscribes to the Signal and automatically rebuilds whenever `count.emit()` is called.
+### 4. Automatic Computed Values
 
-This pattern simplifies state management while providing fine-grained reactivity—only the connected Slot rebuilds, not the entire widget tree.
+Derived values that automatically update when dependencies change:
 
-## ✨ Features
+```dart
+class CartController extends NeuronController {
+  late final items = signal<List<CartItem>>([]);
+  late final discount = signal<double>(0.0);
+  
+  // Automatically recalculates when items or discount changes!
+  late final total = computed(() {
+    final subtotal = items.val.fold(0.0, (sum, item) => sum + item.price);
+    return subtotal * (1 - discount.val);
+  });
+  
+  static CartController get init => Neuron.ensure(() => CartController());
+}
+```
 
-### 🎯 Core Reactive System
-- **Signal/Slot Pattern**: Clean `emit()` and `connect()` API
-- **Automatic UI Updates**: Connect signals to widgets, updates happen automatically
-- **Fine-Grained Reactivity**: Only connected widgets rebuild, not entire trees
-- **Type-Safe**: Full Dart type safety throughout
-- **Memory Efficient**: Automatic cleanup and lifecycle management
+### 5. Beautiful Animations Out of the Box
 
-### 🚀 Developer Experience
-- **StatelessWidget Only**: Write clean functional components
-- **Zero Boilerplate**: Minimal code required to connect state to UI
-- **Service Locator Built-in**: Controller lifecycle managed automatically
-- **Hot Reload Friendly**: Preserves state during development
-- **Intuitive API**: Learn once, productive immediately
+```dart
+AnimatedSlot<int>(
+  connect: c.count,
+  effect: SlotEffect.scale | SlotEffect.fade,
+  curve: Curves.elasticOut,
+  to: (_, value) => Text('$value', style: TextStyle(fontSize: 48)),
+)
+```
 
-### ⚡ Advanced Signals
-- **Computed Signals**: Derived values that auto-update from dependencies
-- **Async Signals**: Built-in loading/error/data states for async operations
-- **Collection Signals**: Reactive lists, maps, and sets with mutation methods
-- **Rate-Limited Signals**: Debounce, throttle, and distinct filtering
-- **Middleware Signals**: Transform, validate, and control value flow
+---
 
-### 🔧 Production-Ready Features
-- **10+ Built-in Middlewares**: Validation, logging, clamping, sanitization, etc.
-- **5 Persistence Adapters**: Auto-save/load with memory, JSON, binary, encrypted, versioned storage
-- **Time-Travel Debugging**: Complete history tracking and state inspection
-- **DevTools Integration**: Visual debugging and performance monitoring
-- **Transaction Support**: Batch multiple updates atomically
-- **Effect System**: Side effects and reactions to signal changes
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 5: QUICK START GUIDE
+     Step-by-step guide to get started with Neuron
+     ═══════════════════════════════════════════════════════════════════════════════ -->
 
-## 📱 Gallery
+## 🚀 Quick Start
 
-See `AnimatedSlot` in action with these examples from the sample app:
-
-| Animated Slot | Directional Slide | Blur Effects |
-|:---:|:---:|:---:|
-| <img src="example/assets/animated_slot_demo.png" width="250" /> | <img src="example/assets/blur_effects.png" width="250" /> | <img src="example/assets/directional_slide.png" width="250" /> |
-
-## 📦 Installation
-
-Run this command:
+### Installation
 
 ```bash
 flutter pub add neuron
 ```
 
-Or add to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  neuron: ^1.1.13
-```
-
-Then run:
-```bash
-flutter pub get
-```
-
-## 🚀 Quick Start
-
-### 1. Create a Controller
+### Step 1: Create a Controller
 
 ```dart
 import 'package:neuron/neuron.dart';
 
 class CounterController extends NeuronController {
+  // Option 1: Verbose (explicit)
   late final count = Signal<int>(0).bind(this);
-  late final doubled = Computed<int>(
-    () => count.val * 2,
-    [count],
-  ).bind(this);
-
+  
+  // Option 2: Clean (recommended)
+  late final count = signal(0);
+  
+  // Option 3: Ultra-short
+  late final count = $(0);
+  
+  // Computed values (auto-track dependencies)
+  late final doubled = computed(() => count.val * 2);
+  late final isEven = computed(() => count.val % 2 == 0);
+  
+  // Methods
   void increment() => count.emit(count.val + 1);
   void decrement() => count.emit(count.val - 1);
-
-  static CounterController get init =>
+  void reset() => count.emit(0);
+  
+  // Static accessor
+  static CounterController get init => 
       Neuron.ensure<CounterController>(() => CounterController());
 }
 ```
 
-## 📚 Widget Guide
-
-Neuron provides a rich set of widgets to handle various reactive scenarios.
-
-### 1. Slot
-The fundamental building block. Rebuilds when the connected signal changes.
-
-```dart
-Slot<int>(
-  connect: counter,
-  to: (context, value) => Text('Count: $value'),
-)
-```
-
-### 2. AsyncSlot
-Specialized slot for `AsyncSignal`s. Handles loading, error, and data states automatically.
-
-```dart
-AsyncSlot<User>(
-  connect: userSignal,
-  onLoading: (context) => CircularProgressIndicator(),
-  onError: (context, error) => Text('Error: $error'),
-  onData: (context, user) => UserProfile(user),
-)
-```
-
-### 3. MultiSlot
-Connect to multiple signals and rebuild when any of them changes.
-
-```dart
-MultiSlot2<String, int>(
-  connect1: nameSignal,
-  connect2: ageSignal,
-  to: (context, name, age) => Text('$name is $age years old'),
-)
-```
-
-### 4. ConditionalSlot
-Conditionally renders widgets based on a boolean signal.
-
-
-
-```dart
-
-final isLoggedIn = Signal<bool>(false);
-
-ConditionalSlot<bool>(
-  connect: isLoggedIn,
-  when: (val) => val,
-  to: (context, _) => UserDashboard(),
-  orElse: (context) => LoginPage(),
-)
-```
-
-### 5. AnimatedSlot
-Automatically animates value changes with built-in effects.
-
-```dart
-AnimatedSlot<int>(
-  connect: counter,
-  effect: SlotEffect.fade | SlotEffect.scale,
-  curve: Curves.elasticOut,
-  to: (context, value) => Text(
-    '$value',
-    style: TextStyle(fontSize: 32),
-  ),
-)
-```
-
-## 🎭 Animations & Effects
-
-Neuron includes a suite of powerful animation widgets to bring your UI to life.
-
-### AnimatedValueSlot
-Smoothly interpolates between numeric values.
-
-```dart
-AnimatedValueSlot<double>(
-  connect: progressSignal,
-  duration: Duration(seconds: 1),
-  format: (val) => '${(val * 100).toStringAsFixed(0)}%',
-  to: (context, formatted) => Text(formatted),
-)
-```
-
-### SpringSlot
-Physics-based spring animations for natural motion.
-
-```dart
-SpringSlot<double>(
-  connect: scaleSignal,
-  spring: SpringConfig.bouncy,
-  to: (context, scale) => Transform.scale(
-    scale: scale,
-    child: Card(),
-  ),
-)
-```
-
-### GestureAnimatedSlot
-Combines gestures with press animations.
-
-```dart
-GestureAnimatedSlot<bool>(
-  connect: isLikedSignal,
-  onTap: () => isLikedSignal.emit(!isLikedSignal.val),
-  pressedScale: 0.8,
-  to: (context, isLiked) => Icon(
-    isLiked ? Icons.favorite : Icons.favorite_border,
-    color: isLiked ? Colors.red : Colors.grey,
-  ),
-)
-```
-
-### PulseSlot
-Continuous pulsing animation for attention-grabbing elements.
-
-```dart
-PulseSlot<int>(
-  connect: notificationCount,
-  when: (count) => count > 0,
-  to: (context, count) => Badge(label: Text('$count')),
-)
-```
-
-### ShimmerSlot
-Loading shimmer effect for async states.
-
-```dart
-ShimmerSlot<User?>(
-  connect: userSignal,
-  when: (user) => user == null,
-  shimmer: Container(width: 100, height: 20, color: Colors.grey),
-  to: (context, user) => Text(user!.name),
-)
-```
-
-### 2. Use in StatelessWidget
+### Step 2: Use in Your UI
 
 ```dart
 class CounterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = CounterController.init;
+    
     return Scaffold(
-      body: Column(
+      appBar: AppBar(title: Text('Neuron Counter')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Connect Signal to UI
+            Slot<int>(
+              connect: c.count,
+              to: (_, value) => Text(
+                '$value',
+                style: TextStyle(fontSize: 72, fontWeight: FontWeight.bold),
+              ),
+            ),
+            SizedBox(height: 16),
+            Slot<bool>(
+              connect: c.isEven,
+              to: (_, isEven) => Text(
+                isEven ? 'Even' : 'Odd',
+                style: TextStyle(color: isEven ? Colors.green : Colors.orange),
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Slot<int>(connect: c.count, to: (ctx, val) => Text('Count: $val')),
-          ElevatedButton(onPressed: c.increment, child: Text('Increment')),
+          FloatingActionButton(
+            onPressed: c.increment,
+            child: Icon(Icons.add),
+          ),
+          SizedBox(height: 8),
+          FloatingActionButton(
+            onPressed: c.decrement,
+            child: Icon(Icons.remove),
+          ),
         ],
       ),
     );
@@ -315,188 +302,728 @@ class CounterPage extends StatelessWidget {
 }
 ```
 
-## 🧭 Navigation
-
-Neuron provides a complete navigation system that works without `BuildContext`.
-
-### Setup
-
-Add `Neuron.navigatorKey` to your `MaterialApp`:
-
-```dart
-MaterialApp(
-  navigatorKey: Neuron.navigatorKey,
-  home: HomePage(),
-);
-// OR use NeuronApp wrapper
-NeuronApp(
-  home: HomePage(),
-)
-```
-
-### Basic Navigation
-
-```dart
-// Go to a new page
-Neuron.to(NextPage());
-
-// Go back
-Neuron.back();
-
-// Replace current page
-Neuron.off(LoginPage());
-
-// Remove all previous pages
-Neuron.offAll(DashboardPage());
-```
-
-### Named Routes
-
-```dart
-// Define routes
-NeuronApp(
-  initialRoute: '/',
-  routes: [
-    NeuronRoute(
-      name: '/',
-      path: '/',
-      builder: (context, params) => HomePage(),
-    ),
-    NeuronRoute(
-      name: '/details',
-      path: '/details/:id',
-      builder: (context, params) => DetailsPage(id: params['id']),
-    ),
-  ],
-);
-
-// Navigate
-Neuron.toNamed('/details/123');
-```
-
-### Transitions
-
-Neuron supports beautiful page transitions out of the box.
-
-```dart
-Neuron.to(
-  NextPage(),
-  transition: NeuronPageTransition.slideUp,
-  duration: Duration(milliseconds: 400),
-);
-```
-
-## ⚡ Effects & Reactions
-
-React to signal changes without widgets.
-
-### SignalReaction
-
-Execute code when a signal changes.
-
-```dart
-final reaction = SignalReaction<int>(
-  count,
-  (value) {
-    print('Count changed to $value');
-    if (value > 10) showAlert();
-  },
-);
-
-// Clean up
-reaction.dispose();
-```
-
-### SignalTransaction
-
-Batch multiple updates to notify listeners only once.
-
-```dart
-SignalTransaction()
-  .update(firstName, 'John')
-  .update(lastName, 'Doe')
-  .commit();
-```
-
-### 3. Run Your App
+### Step 3: Run Your App
 
 ```dart
 void main() => runApp(NeuronApp(home: CounterPage()));
 ```
 
-## 📚 Core Concepts
+---
 
-### Signals & Slots
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 6: SIGNAL TYPES REFERENCE
+     Complete reference of all Signal types with examples
+     - Signal<T>: Basic reactive value
+     - AsyncSignal<T>: Async operations with loading/error states
+     - Computed<T>: Derived values with auto-tracking
+     - ListSignal<E>: Reactive lists
+     - MapSignal<K,V>: Reactive maps
+     - SetSignal<E>: Reactive sets
+     ═══════════════════════════════════════════════════════════════════════════════ -->
 
-**Signals** are reactive data containers. **Slots** are widgets that rebuild when signals change.
+## 📚 Signal Types
+
+Neuron provides specialized signals for different use cases:
+
+### Signal&lt;T&gt; — Basic Reactive Value
 
 ```dart
-// Signal
+final name = Signal<String>('');
 final count = Signal<int>(0);
+final user = Signal<User?>(null);
 
-// Slot
+// Update
+name.emit('John');
+count.emit(count.val + 1);
+
+// Read
+print(name.val);  // 'John'
+```
+
+### AsyncSignal&lt;T&gt; — Async Operations
+
+Handles loading, error, and data states automatically:
+
+```dart
+late final posts = asyncSignal<List<Post>>();
+
+Future<void> loadPosts() async {
+  await posts.execute(() => api.fetchPosts());
+}
+
+// Check states
+posts.isLoading  // true during fetch
+posts.hasError   // true if failed
+posts.hasData    // true if succeeded
+posts.data       // the data (nullable)
+posts.error      // the error (nullable)
+
+// Refresh (re-runs last operation)
+await posts.refresh();
+```
+
+### Computed&lt;T&gt; — Derived Values
+
+Auto-tracks dependencies and recalculates when they change:
+
+```dart
+late final firstName = signal('John');
+late final lastName = signal('Doe');
+
+// Dependencies detected automatically!
+late final fullName = computed(() => '${firstName.val} ${lastName.val}');
+
+firstName.emit('Jane');
+print(fullName.val);  // 'Jane Doe' (auto-updated)
+```
+
+### ListSignal&lt;E&gt; — Reactive Lists
+
+```dart
+late final todos = ListSignal<Todo>([]);
+
+// Mutations that trigger updates
+todos.add(Todo('Buy milk'));
+todos.remove(todo);
+todos.removeAt(0);
+todos.insert(0, Todo('First'));
+todos.clear();
+
+// Access
+todos.val.length
+todos.val.first
+```
+
+### MapSignal&lt;K, V&gt; — Reactive Maps
+
+```dart
+late final settings = MapSignal<String, dynamic>({});
+
+settings.put('theme', 'dark');
+settings.remove('theme');
+settings.clear();
+
+// Access
+settings['theme']
+settings.containsKey('theme')
+```
+
+### SetSignal&lt;E&gt; — Reactive Sets
+
+```dart
+late final tags = SetSignal<String>({});
+
+tags.add('flutter');
+tags.remove('flutter');
+tags.clear();
+
+// Access
+tags.contains('flutter')
+```
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 7: WIDGET GUIDE
+     Complete reference of all Slot widgets
+     - Slot<T>: Basic signal-to-widget connection
+     - AsyncSlot<T>: Async signal with loading/error/data states
+     - MultiSlot: Combine 2-6 signals
+     - ConditionalSlot: Conditional rendering
+     - AnimatedSlot: Animated transitions
+     - SpringSlot: Physics-based animations
+     - GestureAnimatedSlot: Tap with press animations
+     - PulseSlot: Attention-grabbing pulse effect
+     - ShimmerSlot: Loading shimmer effect
+     - MorphSlot: Smooth shape/size transitions
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+## 📱 Widget Guide
+
+### Slot&lt;T&gt; — Basic Connection
+
+```dart
 Slot<int>(
-  connect: count,
-  to: (context, value) => Text('Value: $value'),
+  connect: c.count,
+  to: (context, value) => Text('Count: $value'),
 )
 ```
 
-### Computed Signals
-
-Computed signals automatically recalculate when dependencies change:
+### AsyncSlot&lt;T&gt; — Async States
 
 ```dart
-final width = Signal<double>(10);
-final height = Signal<double>(20);
-final area = Computed<double>(
-  () => width.val * height.val,
-  [width, height],
+AsyncSlot<User>(
+  connect: c.user,
+  onLoading: (ctx) => CircularProgressIndicator(),
+  onError: (ctx, error) => Text('Error: $error'),
+  onData: (ctx, user) => UserCard(user),
+)
+```
+
+### MultiSlot — Multiple Signals
+
+```dart
+// 2 signals
+MultiSlot.t2(
+  c.firstName,
+  c.lastName,
+  to: (ctx, first, last) => Text('$first $last'),
+)
+
+// 3 signals
+MultiSlot.t3(
+  c.width,
+  c.height,
+  c.depth,
+  to: (ctx, w, h, d) => Text('Volume: ${w * h * d}'),
+)
+
+// Up to 6 signals supported: t2, t3, t4, t5, t6
+// Or use list for dynamic count:
+MultiSlot.list(
+  [c.a, c.b, c.c, c.d],
+  to: (ctx, values) => Text('Sum: ${values.reduce((a, b) => a + b)}'),
+)
+```
+
+### ConditionalSlot — Conditional Rendering
+
+```dart
+ConditionalSlot<bool>(
+  connect: c.isLoggedIn,
+  when: (val) => val,
+  to: (ctx, _) => Dashboard(),
+  orElse: (ctx) => LoginPage(),
+)
+```
+
+### AnimatedSlot — Animated Transitions
+
+```dart
+AnimatedSlot<int>(
+  connect: c.count,
+  effect: SlotEffect.fade | SlotEffect.scale | SlotEffect.slideUp,
+  duration: Duration(milliseconds: 300),
+  curve: Curves.easeOutBack,
+  to: (ctx, value) => Text('$value'),
+)
+```
+
+### SpringSlot — Physics-Based Animations
+
+```dart
+SpringSlot<double>(
+  connect: c.temperature,
+  spring: SpringConfig.bouncy,
+  to: (ctx, temp) => Text('${temp.toStringAsFixed(1)}°'),
+)
+```
+
+### GestureAnimatedSlot — Tap with Press Animation
+
+```dart
+GestureAnimatedSlot<bool>(
+  connect: c.isOn,
+  onTap: () => c.toggle(),
+  pressedScale: 0.9,
+  to: (ctx, isOn) => Icon(
+    Icons.power_settings_new,
+    color: isOn ? Colors.green : Colors.grey,
+  ),
+)
+```
+
+### PulseSlot — Attention-Grabbing Pulse
+
+```dart
+PulseSlot<int>(
+  connect: c.alerts,
+  when: (count) => count > 0,  // Only pulse when alerts exist
+  to: (ctx, count) => Badge(label: Text('$count')),
+)
+```
+
+### ShimmerSlot — Loading Shimmer Effect
+
+```dart
+ShimmerSlot<Device?>(
+  connect: c.device,
+  when: (device) => device == null,  // Shimmer while loading
+  shimmer: Container(height: 60, color: Colors.grey[300]),
+  to: (ctx, device) => DeviceCard(device!),
+)
+```
+
+### MorphSlot — Smooth Shape/Size Transitions
+
+```dart
+MorphSlot<bool>(
+  connect: c.isExpanded,
+  config: MorphConfig.bouncy,
+  morphBuilder: (ctx, expanded) => MorphableWidget(
+    child: expanded ? ExpandedContent() : CollapsedContent(),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(expanded ? 16 : 8),
+    ),
+    size: Size(double.infinity, expanded ? 200 : 60),
+  ),
+)
+```
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 8: SMART HOME EXAMPLE
+     Complete real-world example demonstrating:
+     - Multiple signal types working together
+     - Computed values for derived state
+     - Various Slot widgets for different UI needs
+     - Async data loading with shimmer effects
+     - Gesture animations for interactive controls
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+## 🏠 Smart Home Example
+
+A complete example showing how different Slots work together:
+
+### Controller
+
+```dart
+class SmartHomeController extends NeuronController {
+  // Room states
+  late final livingRoomLight = $(false);
+  late final bedroomLight = $(false);
+  late final kitchenLight = $(false);
+  
+  // Thermostat
+  late final temperature = $(22.0);
+  late final targetTemp = $(21.0);
+  late final isHeating = computed(() => temperature.val < targetTemp.val);
+  
+  // Security
+  late final isArmed = $(false);
+  late final motionDetected = $(false);
+  late final alerts = ListSignal<String>([]);
+  
+  // Device status (async loading)
+  late final devices = asyncSignal<List<Device>>();
+  
+  // Computed states
+  late final lightsOn = computed(() => 
+    [livingRoomLight.val, bedroomLight.val, kitchenLight.val]
+      .where((on) => on).length
+  );
+  
+  late final energyUsage = computed(() {
+    var watts = 0.0;
+    if (livingRoomLight.val) watts += 60;
+    if (bedroomLight.val) watts += 40;
+    if (kitchenLight.val) watts += 100;
+    if (isHeating.val) watts += 2000;
+    return watts;
+  });
+  
+  // Actions
+  void toggleLight(Signal<bool> light) => light.emit(!light.val);
+  void setTargetTemp(double temp) => targetTemp.emit(temp.clamp(16.0, 28.0));
+  void armSecurity() => isArmed.emit(true);
+  void disarmSecurity() => isArmed.emit(false);
+  void dismissAlert(String alert) => alerts.remove(alert);
+  
+  Future<void> loadDevices() async {
+    await devices.execute(() => api.fetchDevices());
+  }
+  
+  static SmartHomeController get init => Neuron.ensure(() => SmartHomeController());
+}
+```
+
+### UI with Various Slots
+
+```dart
+class SmartHomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = SmartHomeController.init;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Smart Home'),
+        actions: [
+          // Pulse when alerts exist
+          PulseSlot<List<String>>(
+            connect: c.alerts,
+            when: (alerts) => alerts.isNotEmpty,
+            to: (_, alerts) => Badge(
+              label: Text('${alerts.length}'),
+              child: Icon(Icons.notifications),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        children: [
+          // Energy usage with spring animation
+          SpringSlot<double>(
+            connect: c.energyUsage,
+            spring: SpringConfig.smooth,
+            to: (_, watts) => ListTile(
+              leading: Icon(Icons.bolt, color: Colors.amber),
+              title: Text('Energy Usage'),
+              trailing: Text('${watts.toStringAsFixed(0)}W'),
+            ),
+          ),
+          
+          // Thermostat with morph animation
+          MorphSlot<bool>(
+            connect: c.isHeating,
+            config: MorphConfig(duration: Duration(milliseconds: 500)),
+            morphBuilder: (_, heating) => MorphableWidget(
+              decoration: BoxDecoration(
+                color: heating ? Colors.orange[100] : Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              size: Size(double.infinity, heating ? 120 : 80),
+              child: ListTile(
+                leading: Icon(
+                  heating ? Icons.whatshot : Icons.ac_unit,
+                  color: heating ? Colors.orange : Colors.blue,
+                ),
+                title: Text(heating ? 'Heating...' : 'Cooling'),
+                subtitle: Slot<double>(
+                  connect: c.temperature,
+                  to: (_, temp) => Text('${temp.toStringAsFixed(1)}°C'),
+                ),
+              ),
+            ),
+          ),
+          
+          // Light controls with gesture animations
+          _LightToggle('Living Room', c.livingRoomLight, Icons.weekend),
+          _LightToggle('Bedroom', c.bedroomLight, Icons.bed),
+          _LightToggle('Kitchen', c.kitchenLight, Icons.kitchen),
+          
+          // Security status with animated transitions
+          AnimatedSlot<bool>(
+            connect: c.isArmed,
+            effect: SlotEffect.scale | SlotEffect.fade,
+            to: (_, armed) => ListTile(
+              leading: Icon(
+                armed ? Icons.shield : Icons.shield_outlined,
+                color: armed ? Colors.green : Colors.grey,
+              ),
+              title: Text(armed ? 'Security Armed' : 'Security Disarmed'),
+              trailing: Switch(
+                value: armed,
+                onChanged: (_) => armed ? c.disarmSecurity() : c.armSecurity(),
+              ),
+            ),
+          ),
+          
+          // Devices with shimmer loading
+          ShimmerSlot<List<Device>?>(
+            connect: c.devices,
+            when: (devices) => devices == null,
+            shimmer: Column(
+              children: List.generate(3, (_) => 
+                Container(
+                  height: 60,
+                  margin: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            to: (_, devices) => Column(
+              children: devices!.map((d) => DeviceCard(d)).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Reusable light toggle with press animation
+class _LightToggle extends StatelessWidget {
+  final String name;
+  final Signal<bool> light;
+  final IconData icon;
+  
+  const _LightToggle(this.name, this.light, this.icon);
+  
+  @override
+  Widget build(BuildContext context) {
+    return GestureAnimatedSlot<bool>(
+      connect: light,
+      onTap: () => light.emit(!light.val),
+      pressedScale: 0.95,
+      to: (_, isOn) => ListTile(
+        leading: Icon(icon, color: isOn ? Colors.amber : Colors.grey),
+        title: Text(name),
+        trailing: Icon(
+          isOn ? Icons.lightbulb : Icons.lightbulb_outline,
+          color: isOn ? Colors.amber : Colors.grey,
+        ),
+      ),
+    );
+  }
+}
+```
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 9: MORE REAL-WORLD EXAMPLES
+     Additional patterns and use cases:
+     - E-Commerce Cart: Computed totals and discounts
+     - Authentication Flow: Async user state management
+     - Form Validation: Real-time validation with computed errors
+     - Search with Debounce: Debounced API calls
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+## 🎭 More Real-World Examples
+
+### E-Commerce Cart
+
+```dart
+class CartController extends NeuronController {
+  late final items = signal<List<CartItem>>([]);
+  late final promoCode = signal<String?>(null);
+  
+  late final subtotal = computed(() => 
+    items.val.fold(0.0, (sum, item) => sum + item.price * item.quantity)
+  );
+  
+  late final discount = computed(() {
+    if (promoCode.val == 'SAVE20') return 0.20;
+    if (promoCode.val == 'SAVE10') return 0.10;
+    return 0.0;
+  });
+  
+  late final total = computed(() => subtotal.val * (1 - discount.val));
+  
+  late final itemCount = computed(() => 
+    items.val.fold(0, (sum, item) => sum + item.quantity)
+  );
+  
+  void addItem(Product product) {
+    final existing = items.val.firstWhereOrNull((i) => i.productId == product.id);
+    if (existing != null) {
+      existing.quantity++;
+      items.emit([...items.val]); // Trigger update
+    } else {
+      items.emit([...items.val, CartItem(product)]);
+    }
+  }
+  
+  void removeItem(String productId) {
+    items.emit(items.val.where((i) => i.productId != productId).toList());
+  }
+  
+  void applyPromo(String code) => promoCode.emit(code);
+  
+  static CartController get init => Neuron.ensure(() => CartController());
+}
+```
+
+### Authentication Flow
+
+```dart
+class AuthController extends NeuronController {
+  late final user = asyncSignal<User?>();
+  late final isAuthenticated = computed(() => user.hasData && user.data != null);
+  
+  Future<void> login(String email, String password) async {
+    await user.execute(() => authService.login(email, password));
+  }
+  
+  Future<void> logout() async {
+    await authService.logout();
+    user.emitData(null);
+  }
+  
+  Future<void> checkSession() async {
+    await user.execute(() => authService.getCurrentUser());
+  }
+  
+  static AuthController get init => Neuron.ensure(() => AuthController());
+}
+
+// In your app
+class App extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return NeuronApp(
+      home: Slot<bool>(
+        connect: AuthController.init.isAuthenticated,
+        to: (_, isAuth) => isAuth ? HomePage() : LoginPage(),
+      ),
+    );
+  }
+}
+```
+
+### Form Validation
+
+```dart
+class LoginFormController extends NeuronController {
+  late final email = signal('');
+  late final password = signal('');
+  late final isSubmitting = signal(false);
+  
+  late final emailError = computed(() {
+    if (email.val.isEmpty) return null;
+    if (!email.val.contains('@')) return 'Invalid email';
+    return null;
+  });
+  
+  late final passwordError = computed(() {
+    if (password.val.isEmpty) return null;
+    if (password.val.length < 8) return 'Must be 8+ characters';
+    return null;
+  });
+  
+  late final isValid = computed(() => 
+    email.val.isNotEmpty && 
+    password.val.isNotEmpty && 
+    emailError.val == null && 
+    passwordError.val == null
+  );
+  
+  Future<void> submit() async {
+    if (!isValid.val) return;
+    isSubmitting.emit(true);
+    try {
+      await AuthController.init.login(email.val, password.val);
+    } finally {
+      isSubmitting.emit(false);
+    }
+  }
+  
+  static LoginFormController get init => Neuron.ensure(() => LoginFormController());
+}
+```
+
+### Search with Debounce
+
+```dart
+class SearchController extends NeuronController {
+  late final query = signal('');
+  late final results = asyncSignal<List<Product>>();
+  
+  // Debounced search
+  late final _debouncedQuery = DebouncedSignal(query, Duration(milliseconds: 300));
+  
+  @override
+  void onInit() {
+    // Search when debounced query changes
+    effect(() {
+      if (_debouncedQuery.val.length >= 2) {
+        results.execute(() => api.search(_debouncedQuery.val));
+      }
+    }, [_debouncedQuery]);
+  }
+  
+  static SearchController get init => Neuron.ensure(() => SearchController());
+}
+```
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 10: ANIMATION EFFECTS
+     Reference table of all SlotEffect options
+     Effects can be combined using the | operator
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+## 🎨 Animation Effects
+
+Neuron includes beautiful animation effects:
+
+| Effect | Description |
+|--------|-------------|
+| `SlotEffect.fade` | Fade in/out |
+| `SlotEffect.scale` | Scale up/down |
+| `SlotEffect.slideUp` | Slide from bottom |
+| `SlotEffect.slideDown` | Slide from top |
+| `SlotEffect.slideLeft` | Slide from right |
+| `SlotEffect.slideRight` | Slide from left |
+| `SlotEffect.rotate` | Rotation |
+| `SlotEffect.blur` | Blur effect |
+| `SlotEffect.flip` | 3D flip |
+
+Combine effects with `|`:
+
+```dart
+AnimatedSlot<int>(
+  connect: c.count,
+  effect: SlotEffect.fade | SlotEffect.scale | SlotEffect.slideUp,
+  to: (_, value) => Text('$value'),
+)
+```
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 11: NAVIGATION
+     Context-free navigation using Neuron's global navigator
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+## 🧭 Navigation
+
+Context-free navigation:
+
+```dart
+// Push
+Neuron.to(NextPage());
+
+// Replace
+Neuron.off(LoginPage());
+
+// Back
+Neuron.back();
+
+// Clear stack
+Neuron.offAll(HomePage());
+
+// Named routes
+Neuron.toNamed('/profile/123');
+```
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 12: ADVANCED FEATURES
+     Power features for complex applications:
+     - Middleware: Transform/validate/log signal emissions
+     - Persistence: Auto-save signals to storage
+     - Undo/Redo: Time-travel for signal values
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+## 🔧 Advanced Features
+
+### Middleware
+
+```dart
+final age = MiddlewareSignal<int>(0, middlewares: [
+  ClampMiddleware(min: 0, max: 120),
+  LoggingMiddleware(label: 'age'),
+]);
+```
+
+### Persistence
+
+```dart
+final theme = PersistentSignal<String>(
+  'light',
+  persistence: SimplePersistence(key: 'theme', ...),
 );
 ```
 
-### AsyncSignal
-
-Handles asynchronous operations with built-in loading, error, and data states.
-
-```dart
-final user = AsyncSignal<User>(null);
-
-// Execute async operation
-Future<void> loadUser() async {
-  await user.execute(() => api.getUser());
-}
-
-// In UI
-AsyncSlot<User>(
-  connect: user,
-  onData: (ctx, user) => Text(user.name),
-  onLoading: (ctx) => CircularProgressIndicator(),
-  onError: (ctx, error) => Text('Error: $error'),
-)
-```
-
-### Collection Signals
-
-Reactive Lists, Maps, and Sets.
-
-```dart
-final items = ListSignal<String>([]);
-items.add('Hello');      // Emits change
-items.remove('Hello');   // Emits change
-```
-
-### Rate Limiting
-
-Control emission frequency with `DebouncedSignal`, `ThrottledSignal`, and `DistinctSignal`.
-
-```dart
-final search = Signal<String>('');
-final debounced = DebouncedSignal(search, Duration(milliseconds: 300));
-```
-
 ### Undo/Redo
-
-`UndoableSignal` tracks history and supports undo/redo operations.
 
 ```dart
 final text = UndoableSignal<String>('');
@@ -506,125 +1033,37 @@ text.undo(); // 'Hello'
 text.redo(); // 'World'
 ```
 
-### Middleware
+---
 
-Intercept signal emissions to transform, validate, or control value flow.
-
-```dart
-final age = MiddlewareSignal<int>(
-  0,
-  middlewares: [
-    ClampMiddleware(min: 0, max: 120),
-    LoggingMiddleware(label: 'age'),
-    HistoryMiddleware(limit: 10), // Track history
-  ],
-);
-```
-
-**Available Middlewares:**
-- `LoggingMiddleware`: Log value changes.
-- `ValidationMiddleware`: Prevent invalid values.
-- `ClampMiddleware`: Constrain numeric values.
-- `TransformMiddleware`: Modify values before emit.
-- `SanitizationMiddleware`: Clean string values.
-- `RateLimitMiddleware`: Limit update frequency.
-- `ConditionalMiddleware`: Update only if condition met.
-- `CoalesceMiddleware`: Handle nulls.
-- `AggregateMiddleware`: Combine multiple middlewares.
-
-### Persistence
-
-Automatically save and restore signal state.
-
-```dart
-final theme = PersistentSignal<String>(
-  'light',
-  persistence: SimplePersistence(key: 'theme', ...),
-);
-```
-
-**Persistence Adapters:**
-- `SimplePersistence`: String-based storage (e.g., SharedPreferences).
-- `JsonPersistence`: Store complex objects as JSON.
-- `BinaryPersistence`: Efficient binary storage.
-- `EncryptedPersistence`: Secure storage with encryption.
-- `VersionedPersistence`: Handle data migration across versions.
-- `MemoryPersistence`: Ephemeral storage for testing.
-
-### Utilities
-
-Helper methods for common tasks.
-
-```dart
-// Create from Stream
-final streamSignal = SignalUtils.fromStream(myStream, initialValue);
-
-// Create from Future
-final futureSignal = SignalUtils.fromFuture(myFuture);
-
-// Poll periodically
-final pollSignal = SignalUtils.poll(fetchData, Duration(seconds: 5), initial);
-```
-
-### Animations
-
-`AnimatedSlot`, `AnimatedFormSlot`, and `MorphSlot` provide beautiful reactive animations.
-
-```dart
-AnimatedSlot<int>(
-  connect: count,
-  effect: SlotEffect.fade | SlotEffect.scale,
-  to: (context, value) => Text('$value'),
-)
-```
-
-## 🛠️ DevTools & Debugging (Work in progress)
-
-Neuron includes a powerful DevTools integration for debugging and performance monitoring.
-
-> **Note**: This feature is currently a work in progress. The core infrastructure (Debug Server, WebSocket API) is fully functional, and the DevTools extension UI is coming soon!
-
-### Setup
-
-Enable DevTools in your `NeuronApp`:
-
-```dart
-void main() {
-  runApp(
-    NeuronApp(
-      enableDevTools: true, // Default in debug mode
-      maxDevToolsEvents: 500,
-      home: MyApp(),
-    ),
-  );
-}
-```
-
-### Features
-
-1.  **Auto-Registration**: Signals bound to a controller with `.bind(this)` are automatically registered with DevTools.
-2.  **Signal Inspector**: View all registered signals, current values, and listener counts.
-3.  **Time Travel**: Inspect history and restore previous states.
-4.  **Performance Monitor**: Track signal emit rates and build times.
-
-### Debug Server
-
-Neuron starts a unified Debug Server (WebSocket + HTTP) on port `9090` (or next available).
-- **Dashboard**: `http://localhost:9090/ui`
-- **API**: `/snapshot`, `/events`, `/health`
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 13: PERFORMANCE
+     Key performance characteristics and optimizations
+     ═══════════════════════════════════════════════════════════════════════════════ -->
 
 ## 📊 Performance
 
-Neuron is designed for high performance with minimal overhead.
+- **Fine-grained**: Only connected widgets rebuild
+- **Lazy computed**: Values calculated only when accessed
+- **Efficient**: Optimized listener notification
+- **Auto-cleanup**: Memory managed automatically
 
-- **Fast Updates**: Optimized for rapid state changes and UI rebuilds.
-- **Low Memory Footprint**: Efficient signal implementation.
-- **Minimal Boilerplate**: Concise syntax reduces code size.
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     SECTION 14: CONTRIBUTING & LICENSE
+     How to contribute and licensing information
+     ═══════════════════════════════════════════════════════════════════════════════ -->
 
 ## 🤝 Contributing
 
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE).
+
+---
+
+<p align="center">
+  <b>Built with ❤️ for the Flutter community</b>
+</p>

@@ -335,7 +335,6 @@ class NeuronNavigator extends NeuronController {
   late final isNavigating = Signal<bool>(false).bind(this);
   late final canGoBack = Computed<bool>(
     () => navigationHistory.val.length > 1,
-    [navigationHistory],
   ).bind(this);
   late final canGoForward = Signal<bool>(false).bind(this);
 

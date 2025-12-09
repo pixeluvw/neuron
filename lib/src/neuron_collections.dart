@@ -1,4 +1,44 @@
 // neuron_collections.dart
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEURON COLLECTIONS - Reactive Collection Types
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Specialized Signal types for working with collections (List, Map, Set).
+// Each provides convenient mutation methods while maintaining immutability
+// and proper change notification.
+//
+// ┌───────────────┬─────────────────────────────────────────────────────────────┐
+// │ Type           │ Description                                                 │
+// ├───────────────┼─────────────────────────────────────────────────────────────┤
+// │ ListSignal<E>  │ Reactive list with add, remove, insert, sort, filter       │
+// │ MapSignal<K,V> │ Reactive map with put, remove, putAll, clear               │
+// │ SetSignal<E>   │ Reactive set with add, remove, toggle, union, intersect    │
+// └───────────────┴─────────────────────────────────────────────────────────────┘
+//
+// IMMUTABILITY:
+// All mutation methods create new collection instances internally.
+// This ensures proper change detection and avoids reference equality issues.
+//
+// EXAMPLE:
+// ```dart
+// class TodoController extends NeuronController {
+//   late final todos = ListSignal<Todo>([]).bind(this);
+//   late final selectedTags = SetSignal<String>({}).bind(this);
+//   late final settings = MapSignal<String, dynamic>({}).bind(this);
+//
+//   void addTodo(Todo todo) => todos.add(todo);
+//   void toggleTag(String tag) => selectedTags.toggle(tag);
+//   void updateSetting(String key, dynamic value) => settings.put(key, value);
+// }
+// ```
+//
+// See also:
+// - neuron_signals.dart : Base Signal class
+// - neuron_core.dart    : Slot widget for UI binding
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
 part of 'neuron_extensions.dart';
 
 /// ============================================================================

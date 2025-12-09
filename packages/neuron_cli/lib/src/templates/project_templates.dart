@@ -47,7 +47,6 @@ class HomeController extends NeuronController {
   /// Computed signal - derived from count
   late final doubled = Computed<int>(
     () => count.val * 2,
-    [count],
   ).bind(this);
 
   /// Increment counter

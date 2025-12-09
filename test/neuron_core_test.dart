@@ -178,14 +178,14 @@ void main() {
   group('Computed', () {
     test('should compute value from dependencies', () {
       final count = Signal<int>(5);
-      final doubled = Computed<int>(() => count.val * 2, [count]);
+      final doubled = Computed<int>(() => count.val * 2);
 
       expect(doubled.value, 10);
     });
 
     test('should update when dependencies change', () {
       final count = Signal<int>(5);
-      final doubled = Computed<int>(() => count.val * 2, [count]);
+      final doubled = Computed<int>(() => count.val * 2);
 
       count.emit(10);
 
@@ -195,7 +195,7 @@ void main() {
     test('should handle multiple dependencies', () {
       final a = Signal<int>(2);
       final b = Signal<int>(3);
-      final sum = Computed<int>(() => a.val + b.val, [a, b]);
+      final sum = Computed<int>(() => a.val + b.val);
 
       expect(sum.value, 5);
 
@@ -208,8 +208,8 @@ void main() {
 
     test('should chain computed signals', () {
       final count = Signal<int>(5);
-      final doubled = Computed<int>(() => count.val * 2, [count]);
-      final quadrupled = Computed<int>(() => doubled.value * 2, [doubled]);
+      final doubled = Computed<int>(() => count.val * 2);
+      final quadrupled = Computed<int>(() => doubled.value * 2);
 
       expect(quadrupled.value, 20);
 
@@ -240,6 +240,95 @@ void main() {
       expect(derived.value, 30);
     });
   });
+
+  group('Controller Signal Factory Extensions', () {
+    tearDown(() {
+      Neuron.clearAll();
+    });
+
+    test('signal() creates bound Signal', () {
+      final controller = SignalFactoryController();
+      Neuron.install(controller);
+
+      expect(controller.count.val, 0);
+      controller.count.emit(5);
+      expect(controller.count.val, 5);
+
+      // Verify auto-dispose
+      Neuron.uninstall<SignalFactoryController>();
+      // Signal should be disposed (no assertion here, just verify controller lifecycle)
+    });
+
+    test('\$() creates bound Signal with short syntax', () {
+      final controller = ShorthandController();
+      Neuron.install(controller);
+
+      expect(controller.count.val, 0);
+      controller.count.emit(10);
+      expect(controller.count.val, 10);
+    });
+
+    test('computed() creates bound Computed', () {
+      final controller = SignalFactoryController();
+      Neuron.install(controller);
+
+      // Access value to trigger computation
+      expect(controller.doubled.val, 0);
+      
+      // Add listener to make Computed reactive
+      controller.doubled.addListener(() {});
+      
+      controller.count.emit(5);
+      expect(controller.doubled.val, 10);
+    });
+
+    test('\$computed() creates bound Computed with short syntax', () {
+      final controller = ShorthandController();
+      Neuron.install(controller);
+
+      expect(controller.doubled.val, 0);
+      
+      // Add listener to make Computed reactive
+      controller.doubled.addListener(() {});
+      
+      controller.count.emit(7);
+      expect(controller.doubled.val, 14);
+    });
+
+    test('asyncSignal() creates bound AsyncSignal', () async {
+      final controller = SignalFactoryController();
+      Neuron.install(controller);
+
+      expect(controller.user.isLoading, true);
+
+      await controller.user.execute(() async => 'Alice');
+      expect(controller.user.data, 'Alice');
+    });
+
+    test('\$async() creates bound AsyncSignal with short syntax', () async {
+      final controller = ShorthandController();
+      Neuron.install(controller);
+
+      expect(controller.user.isLoading, true);
+
+      await controller.user.execute(() async => 'Bob');
+      expect(controller.user.data, 'Bob');
+    });
+  });
+}
+
+// Test controller using signal() factory extension
+class SignalFactoryController extends NeuronController {
+  late final count = signal(0);
+  late final doubled = computed(() => count.val * 2);
+  late final user = asyncSignal<String>();
+}
+
+// Test controller using $() shorthand extension
+class ShorthandController extends NeuronController {
+  late final count = $(0);
+  late final doubled = $computed(() => count.val * 2);
+  late final user = $async<String>();
 }
 
 // Test controllers

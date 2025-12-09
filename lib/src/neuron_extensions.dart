@@ -1,19 +1,37 @@
 // neuron_extensions.dart
 //
-// Extended signal types and advanced features for Neuron v1
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEURON EXTENSIONS - Advanced Features & Utilities
+// ═══════════════════════════════════════════════════════════════════════════════
 //
-// Includes:
-// - ListSignal, MapSignal, SetSignal (collection signals)
-// - Debounced, throttled, distinct signals
-// - Middleware and interceptors
-// - Persistence adapters
-// - Effects, reactions, and transactions
-// - DevTools integration
-// - Utilities
+// This file serves as the hub for Neuron's extended functionality,
+// importing and re-exporting all advanced features via `part` directives.
 //
-// Slots are separated into:
-// - slots/neuron_slots_base.dart - Base reactive value slots
-// - neuron_slots.dart - UI animation slots
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │ INCLUDED MODULES (via `part`)                                             │
+// ├──────────────────────────┬──────────────────────────────────────────────────┤
+// │ neuron_collections.dart    │ ListSignal, MapSignal, SetSignal             │
+// │ neuron_rate_limiting.dart  │ DebouncedSignal, ThrottledSignal, Distinct   │
+// │ neuron_middleware.dart     │ Signal interceptors and transformers         │
+// │ neuron_persistence.dart    │ SharedPreferences & Hive adapters            │
+// │ neuron_effects.dart        │ Reactions, when(), autorun()                 │
+// │ neuron_devtools.dart       │ Signal debugging and inspection              │
+// │ neuron_performance_monitor │ Memory, rebuild, and timing metrics          │
+// │ neuron_utilities.dart      │ Helper functions and common patterns         │
+// │ neuron_advanced.dart       │ UndoableSignal, FormSignal, ComputedAsync    │
+// │ neuron_slots.dart          │ AnimatedSlot, SpringSlot, MorphSlot, etc.    │
+// └──────────────────────────┴──────────────────────────────────────────────────┘
+//
+// USAGE:
+// All exports are available through the main `neuron.dart` barrel file.
+// Users don't need to import this file directly.
+//
+// See also:
+// - neuron.dart : Main library export
+// - neuron_core.dart : Core framework classes
+// - neuron_signals.dart : Signal, AsyncSignal, Computed
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 
 import 'dart:async';
 import 'dart:convert';
