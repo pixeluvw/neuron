@@ -119,7 +119,8 @@ abstract class Disposable {
 void Function(String message, Object error, StackTrace? stackTrace)
     neuronErrorHandler = _defaultErrorHandler;
 
-void _defaultErrorHandler(String message, Object error, StackTrace? stackTrace) {
+void _defaultErrorHandler(
+    String message, Object error, StackTrace? stackTrace) {
   if (kDebugMode) {
     // ignore: avoid_print
     print('$message: $error');

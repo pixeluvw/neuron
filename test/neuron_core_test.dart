@@ -274,10 +274,10 @@ void main() {
 
       // Access value to trigger computation
       expect(controller.doubled.val, 0);
-      
+
       // Add listener to make Computed reactive
       controller.doubled.addListener(() {});
-      
+
       controller.count.emit(5);
       expect(controller.doubled.val, 10);
     });
@@ -287,10 +287,10 @@ void main() {
       Neuron.install(controller);
 
       expect(controller.doubled.val, 0);
-      
+
       // Add listener to make Computed reactive
       controller.doubled.addListener(() {});
-      
+
       controller.count.emit(7);
       expect(controller.doubled.val, 14);
     });

@@ -586,9 +586,25 @@ MorphSlot<bool>(
 
 A complete example showing how different Slots work together:
 
+<p align="center">
+  <img src="example/assets/smart_home_1.png" width="250" alt="Smart Home Dashboard"/>
+  <img src="example/assets/smart_home_2.png" width="250" alt="Smart Home Controls"/>
+  <img src="example/assets/smart_home_3.png" width="250" alt="Smart Home Alert"/>
+</p>
+
 ### Controller
 
 ```dart
+import 'package:neuron/neuron.dart';
+
+class Device {
+  final String name;
+  final String type;
+  final bool isOnline;
+  
+  Device({required this.name, required this.type, this.isOnline = true});
+}
+
 class SmartHomeController extends NeuronController {
   // Room states
   late final livingRoomLight = $(false);
@@ -598,15 +614,36 @@ class SmartHomeController extends NeuronController {
   // Thermostat
   late final temperature = $(22.0);
   late final targetTemp = $(21.0);
-  late final isHeating = computed(() => temperature.val < targetTemp.val);
+  // Signal for animated slots - synced via computed
+  late final isHeating = $(false);
   
   // Security
   late final isArmed = $(false);
+  late final isArming = $(false);
+  late final armingCountdown = $(0);
   late final motionDetected = $(false);
   late final alerts = ListSignal<String>([]);
   
+  // Bool signal for ToggleSlot animation on notifications
+  late final hasAlerts = $(false);
+  
+  // Wave effect trigger - increments to trigger animation
+  late final wavetrigger = $(0);
+  late final waveIsArming = $(true); // true = arming (red), false = disarming (green)
+  late final waveProgress = $(0.0); // 0.0 to 1.0 for wave animation
+  
+  // Pulse animation intensity for armed state (0.0 to 1.0 for glow intensity)
+  late final pulseIntensity = $(0.0);
+  
+  // Screen flash intensity for alarm wave (0.0 to 1.0)
+  late final screenFlashIntensity = $(0.0);
+  
   // Device status (async loading)
-  late final devices = asyncSignal<List<Device>>();
+  late final devices = $<List<Device>?>([
+    Device(name: 'Smart TV', type: 'entertainment'),
+    Device(name: 'Smart Speaker', type: 'audio'),
+    Device(name: 'Robot Vacuum', type: 'appliance'),
+  ]);
   
   // Computed states
   late final lightsOn = computed(() => 
@@ -614,130 +651,1238 @@ class SmartHomeController extends NeuronController {
       .where((on) => on).length
   );
   
-  late final energyUsage = computed(() {
+  // Signal for SpringSlot animation - synced via computed
+  late final energyUsage = $(0.0);
+  
+  // Internal computed to drive signal updates
+  late final _heatingSync = computed(() {
+    final heating = temperature.val < targetTemp.val;
+    if (isHeating.val != heating) {
+      Future.microtask(() => isHeating.emit(heating));
+    }
+    return heating;
+  });
+  
+  late final _energySync = computed(() {
     var watts = 0.0;
     if (livingRoomLight.val) watts += 60;
     if (bedroomLight.val) watts += 40;
     if (kitchenLight.val) watts += 100;
-    if (isHeating.val) watts += 2000;
+    if (_heatingSync.val) watts += 2000;
+    if (energyUsage.val != watts) {
+      Future.microtask(() => energyUsage.emit(watts));
+    }
     return watts;
   });
+  
+  // Sync hasAlerts with alerts list
+  late final _alertsSync = computed(() {
+    final has = alerts.val.isNotEmpty;
+    if (hasAlerts.val != has) {
+      Future.microtask(() => hasAlerts.emit(has));
+    }
+    return has;
+  });
+  
+  // Force computed evaluation on init
+  void _init() {
+    _heatingSync.val;
+    _energySync.val;
+    _alertsSync.val;
+    _startTemperatureSimulation();
+  }
+  
+  // Simulate temperature gradually approaching target
+  void _startTemperatureSimulation() async {
+    while (true) {
+      await Future.delayed(const Duration(milliseconds: 3000));
+      final current = temperature.val;
+      final target = targetTemp.val;
+      
+      if ((current - target).abs() > 0.05) {
+        // Move temperature 0.1 degree towards target
+        final step = current < target ? 0.1 : -0.1;
+        temperature.emit(double.parse((current + step).toStringAsFixed(1)));
+      }
+    }
+  }
   
   // Actions
   void toggleLight(Signal<bool> light) => light.emit(!light.val);
   void setTargetTemp(double temp) => targetTemp.emit(temp.clamp(16.0, 28.0));
-  void armSecurity() => isArmed.emit(true);
-  void disarmSecurity() => isArmed.emit(false);
-  void dismissAlert(String alert) => alerts.remove(alert);
   
-  Future<void> loadDevices() async {
-    await devices.execute(() => api.fetchDevices());
+  Future<void> armSecurity() async {
+    if (isArming.val || isArmed.val) return;
+    isArming.emit(true);
+    for (var i = 5; i > 0; i--) {
+      armingCountdown.emit(i);
+      await Future.delayed(const Duration(seconds: 1));
+    }
+    armingCountdown.emit(0);
+    isArming.emit(false);
+    isArmed.emit(true);
+    // Add alert notification
+    alerts.add('Security system armed');
+    // Trigger wave animation (red for arming)
+    waveIsArming.emit(true);
+    wavetrigger.emit(wavetrigger.val + 1);
+    _runWaveAnimation();
+    _startPulseAnimation();
   }
   
-  static SmartHomeController get init => Neuron.ensure(() => SmartHomeController());
+  void cancelArming() {
+    isArming.emit(false);
+    armingCountdown.emit(0);
+  }
+  
+  void disarmSecurity() {
+    isArmed.emit(false);
+    // Add alert notification
+    alerts.add('Security system disarmed');
+    // Trigger wave animation (green for disarming)
+    waveIsArming.emit(false);
+    wavetrigger.emit(wavetrigger.val + 1);
+    _runWaveAnimation();
+  }
+  
+  // Run wave animation by updating progress signal
+  Future<void> _runWaveAnimation() async {
+    waveProgress.emit(0.0);
+    final isArming = waveIsArming.val;
+    const steps = 60; // ~60fps for 1.2 seconds
+    const duration = 1200; // ms
+    
+    for (var i = 1; i <= steps; i++) {
+      await Future.delayed(const Duration(milliseconds: duration ~/ steps));
+      waveProgress.emit(i / steps);
+      
+      // Red flash effect only when arming
+      if (isArming) {
+        // Flash intensity peaks at middle of animation then fades
+        final flashProgress = i / steps;
+        final flash = flashProgress < 0.3 
+            ? flashProgress / 0.3  // Ramp up
+            : (1.0 - flashProgress) / 0.7;  // Fade out
+        screenFlashIntensity.emit(flash.clamp(0.0, 1.0) * 0.4);  // Max 40% intensity
+      }
+    }
+    screenFlashIntensity.emit(0.0);  // Ensure flash is cleared
+  }
+  
+  // Run pulse animation continuously when armed - emits intensity directly
+  void _startPulseAnimation() async {
+    while (isArmed.val) {
+      // Ramp up
+      for (var i = 0; i <= 50; i++) {
+        if (!isArmed.val) {
+          pulseIntensity.emit(0.0);
+          return;
+        }
+        await Future.delayed(const Duration(milliseconds: 20));
+        pulseIntensity.emit(i / 50.0);
+      }
+      // Ramp down
+      for (var i = 50; i >= 0; i--) {
+        if (!isArmed.val) {
+          pulseIntensity.emit(0.0);
+          return;
+        }
+        await Future.delayed(const Duration(milliseconds: 20));
+        pulseIntensity.emit(i / 50.0);
+      }
+    }
+    pulseIntensity.emit(0.0);
+  }
+  void dismissAlert(String alert) => alerts.remove(alert);
+  
+  static SmartHomeController get init {
+    final controller = Neuron.ensure(() => SmartHomeController());
+    controller._init();
+    return controller;
+  }
 }
 ```
 
 ### UI with Various Slots
 
 ```dart
+import 'package:flutter/material.dart';
+import 'package:neuron/neuron.dart';
+import 'package:smarthome/smarthome_controller.dart';
+
+void main() {
+  runApp(NeuronApp(home: const MyApp()));
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Neuron Smart Home',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0D0D0D),
+        colorScheme: ColorScheme.dark(
+          primary: const Color(0xFFFFAA00),
+          secondary: const Color(0xFFFF8C00),
+          surface: const Color(0xFF1A1A1A),
+        ),
+      ),
+      home: const SmartHomePage(),
+    );
+  }
+}
+
+// Scan wave effect widget - Using Neuron SpringSlot for smooth animation
+class _ScanWaveOverlay extends StatelessWidget {
+  final SmartHomeController controller;
+
+  const _ScanWaveOverlay({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+
+    // Use Slot to reactively check if wave should show
+    return Slot<int>(
+      connect: c.wavetrigger,
+      to: (_, trigger) {
+        if (trigger == 0) return const SizedBox.shrink();
+
+        // Use SpringSlot for smooth animated progress
+        return SpringSlot<double>(
+          connect: c.waveProgress,
+          spring: SpringConfig.smooth,
+          to: (_, progress) {
+            if (progress >= 1.0) return const SizedBox.shrink();
+
+            // Painter reads all values directly from controller signals
+            return CustomPaint(
+              painter: _ScanWavePainter(controller: c),
+              size: Size.infinite,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ScanWavePainter extends CustomPainter {
+  final SmartHomeController controller;
+
+  _ScanWavePainter({required this.controller});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Read values directly from controller signals
+    final progress = controller.waveProgress.val;
+    final isArming = controller.waveIsArming.val;
+    final topToBottom = !isArming;
+    final color = isArming ? const Color(0xFFFF6B6B) : const Color(0xFFFFAA00);
+    final opacity = 1.0 - progress;
+
+    // Wave position: bottom-to-top or top-to-bottom based on direction
+    final waveY = topToBottom
+        ? size.height *
+              progress // Top to bottom (disarming)
+        : size.height * (1 - progress); // Bottom to top (arming)
+    final fadeOpacity = opacity;
+
+    // Full screen tint that fades - fill area behind the wave
+    final tintPaint = Paint()
+      ..color = color.withValues(alpha: 0.08 * fadeOpacity);
+    if (topToBottom) {
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, waveY), tintPaint);
+    } else {
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, waveY), tintPaint);
+    }
+
+    // Thick main scan line with strong glow
+    final lineHeight = 20.0;
+    final linePaint = Paint()
+      ..shader =
+          LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              color.withValues(alpha: 0),
+              color.withValues(alpha: 1.0 * fadeOpacity),
+              color.withValues(alpha: 1.0 * fadeOpacity),
+              color.withValues(alpha: 0),
+            ],
+            stops: const [0.0, 0.15, 0.85, 1.0],
+          ).createShader(
+            Rect.fromLTWH(0, waveY - lineHeight / 2, size.width, lineHeight),
+          );
+
+    canvas.drawRect(
+      Rect.fromLTWH(0, waveY - lineHeight / 2, size.width, lineHeight),
+      linePaint,
+    );
+
+    // Glow effect - ahead of the wave direction
+    final glowHeight = 200.0;
+    if (topToBottom) {
+      // Glow below the line (ahead of downward motion)
+      final glowPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            color.withValues(alpha: 0.4 * fadeOpacity),
+            color.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromLTWH(0, waveY, size.width, glowHeight));
+      canvas.drawRect(
+        Rect.fromLTWH(0, waveY, size.width, glowHeight),
+        glowPaint,
+      );
+    } else {
+      // Glow above the line (ahead of upward motion)
+      final glowPaint = Paint()
+        ..shader =
+            LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                color.withValues(alpha: 0),
+                color.withValues(alpha: 0.4 * fadeOpacity),
+              ],
+            ).createShader(
+              Rect.fromLTWH(0, waveY - glowHeight, size.width, glowHeight),
+            );
+      canvas.drawRect(
+        Rect.fromLTWH(0, waveY - glowHeight, size.width, glowHeight),
+        glowPaint,
+      );
+    }
+
+    // Trailing fade - behind the wave direction
+    final trailHeight = 120.0;
+    if (topToBottom) {
+      // Trail above the line (behind downward motion)
+      final trailPaint = Paint()
+        ..shader =
+            LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                color.withValues(alpha: 0),
+                color.withValues(alpha: 0.3 * fadeOpacity),
+              ],
+            ).createShader(
+              Rect.fromLTWH(0, waveY - trailHeight, size.width, trailHeight),
+            );
+      canvas.drawRect(
+        Rect.fromLTWH(0, waveY - trailHeight, size.width, trailHeight),
+        trailPaint,
+      );
+    } else {
+      // Trail below the line (behind upward motion)
+      final trailPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            color.withValues(alpha: 0.3 * fadeOpacity),
+            color.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromLTWH(0, waveY, size.width, trailHeight));
+      canvas.drawRect(
+        Rect.fromLTWH(0, waveY, size.width, trailHeight),
+        trailPaint,
+      );
+    }
+
+    // Extra bright center line
+    final brightLinePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.8 * fadeOpacity)
+      ..strokeWidth = 4;
+    canvas.drawLine(
+      Offset(size.width * 0.05, waveY),
+      Offset(size.width * 0.95, waveY),
+      brightLinePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ScanWavePainter oldDelegate) => true; // Always repaint since values come from signals
+}
+
+// Continuous pulsing widget for armed state - reads intensity from controller
+class _ArmedPulseWrapper extends StatelessWidget {
+  final SmartHomeController controller;
+
+  const _ArmedPulseWrapper({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    // Use Slot - controller already provides the pulse intensity directly
+    return Slot<double>(
+      connect: controller.pulseIntensity,
+      to: (_, pulse) => Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF6B6B).withValues(alpha: 0.4 * pulse),
+              blurRadius: 20 * pulse,
+              spreadRadius: 2 * pulse,
+            ),
+          ],
+        ),
+        child: _SecurityCard(controller: controller),
+      ),
+    );
+  }
+}
+
+// Modern flat dark card widget
+class GlassCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets? padding;
+  final EdgeInsets? margin;
+  final double blur;
+  final double opacity;
+  final Color? borderColor;
+  final double borderRadius;
+
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.margin,
+    this.blur = 0,
+    this.opacity = 0.15,
+    this.borderColor,
+    this.borderRadius = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: padding ?? const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        // Flat dark background
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: borderColor ?? const Color(0xFF2A2A2A),
+          width: 1,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
 class SmartHomePage extends StatelessWidget {
+  const SmartHomePage({super.key});
+
+  void _showAlertsDialog(BuildContext context, SmartHomeController c) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(color: const Color(0xFF2A2A2A)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Notifications',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Slot<List<String>>(
+              connect: c.alerts,
+              to: (_, alerts) => alerts.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.notifications_off_outlined,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            size: 48,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No notifications',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: alerts.length,
+                      itemBuilder: (context, index) {
+                        final alert = alerts[index];
+                        return Dismissible(
+                          key: Key(alert + index.toString()),
+                          onDismissed: (_) => c.dismissAlert(alert),
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 16),
+                            child: const Icon(
+                              Icons.delete_outline,
+                              color: Color(0xFFFF6B6B),
+                            ),
+                          ),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFFF6B6B,
+                                    ).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.security,
+                                    color: Color(0xFFFF6B6B),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    alert,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                    size: 18,
+                                  ),
+                                  onPressed: () => c.dismissAlert(alert),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 16),
+            Slot<List<String>>(
+              connect: c.alerts,
+              to: (_, alerts) => alerts.isNotEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          onPressed: () {
+                            while (c.alerts.val.isNotEmpty) {
+                              c.dismissAlert(c.alerts.val.first);
+                            }
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFFFF6B6B),
+                          ),
+                          child: const Text('Clear All'),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = SmartHomeController.init;
-    
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Smart Home'),
-        actions: [
-          // Pulse when alerts exist
-          PulseSlot<List<String>>(
-            connect: c.alerts,
-            when: (alerts) => alerts.isNotEmpty,
-            to: (_, alerts) => Badge(
-              label: Text('${alerts.length}'),
-              child: Icon(Icons.notifications),
+      body: Stack(
+        children: [
+          // Main content - Flat dark background
+          Container(
+            color: const Color(0xFF0D0D0D),
+            child: SafeArea(
+              child: CustomScrollView(
+                slivers: [
+                  // Custom App Bar with glass effect
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome Home',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Neuron User!',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Animated toggle for alerts - Neuron AnimatedSlot
+                          AnimatedSlot<bool>(
+                            connect: c.hasAlerts,
+                            effect: SlotEffect.scale | SlotEffect.fade,
+                            to: (_, hasAlerts) => GestureDetector(
+                              onTap: () => _showAlertsDialog(context, c),
+                              child: GlassCard(
+                                padding: const EdgeInsets.all(12),
+                                margin: EdgeInsets.zero,
+                                borderColor: hasAlerts
+                                    ? const Color(
+                                        0xFFFFAA00,
+                                      ).withValues(alpha: 0.5)
+                                    : const Color(0xFF2A2A2A),
+                                child: Slot<List<String>>(
+                                  connect: c.alerts,
+                                  to: (_, alerts) => Badge(
+                                    isLabelVisible: alerts.isNotEmpty,
+                                    label: Text('${alerts.length}'),
+                                    backgroundColor: const Color(0xFFFFAA00),
+                                    child: Icon(
+                                      alerts.isNotEmpty
+                                          ? Icons.notifications_active
+                                          : Icons.notifications_outlined,
+                                      color: alerts.isNotEmpty
+                                          ? const Color(0xFFFFAA00)
+                                          : Colors.white54,
+                                      size: 24,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Energy Usage Card with SpringSlot animation
+                  SliverToBoxAdapter(
+                    child: SpringSlot<double>(
+                      connect: c.energyUsage,
+                      spring: SpringConfig.smooth,
+                      to: (_, watts) {
+                        // Dynamic colors based on energy usage
+                        final Color iconColor;
+                        final Color borderColor;
+                        if (watts >= 2000) {
+                          // High usage - red warning
+                          iconColor = const Color(0xFFFF4444);
+                          borderColor = const Color(0xFFFF4444).withValues(alpha: 0.3);
+                        } else if (watts >= 100) {
+                          // Medium usage - orange
+                          iconColor = const Color(0xFFFFAA00);
+                          borderColor = const Color(0xFFFFAA00).withValues(alpha: 0.3);
+                        } else if (watts > 0) {
+                          // Low usage - yellow
+                          iconColor = const Color(0xFFFFCC00);
+                          borderColor = const Color(0xFFFFCC00).withValues(alpha: 0.2);
+                        } else {
+                          // No usage - dim
+                          iconColor = const Color(0xFF666666);
+                          borderColor = const Color(0xFF2A2A2A);
+                        }
+                        return GlassCard(
+                          borderColor: borderColor,
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: iconColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.bolt,
+                                  color: iconColor,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Energy Usage',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${watts.toStringAsFixed(0)} W',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Lights on indicator
+                              Slot<int>(
+                                connect: c.lightsOn,
+                                to: (_, count) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF252525),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '$count lights on',
+                                    style: TextStyle(
+                                      color: count > 0 ? const Color(0xFFFFAA00) : Colors.white38,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // Thermostat Card with AnimatedSlot animation
+                  SliverToBoxAdapter(
+                    child: Slot<double>(
+                      connect: c.temperature,
+                      to: (_, temp) {
+                        // Determine icon and colors based on temperature
+                        final IconData tempIcon;
+                        final Color iconColor;
+                        final Color borderColor;
+
+                        if (temp >= 26) {
+                          // Hot - red
+                          tempIcon = Icons.local_fire_department;
+                          iconColor = const Color(0xFFFF4444);
+                          borderColor = const Color(0xFFFF4444).withValues(alpha: 0.3);
+                        } else if (temp >= 22) {
+                          // Warm - orange
+                          tempIcon = Icons.whatshot;
+                          iconColor = const Color(0xFFFF8C00);
+                          borderColor = const Color(0xFFFF8C00).withValues(alpha: 0.3);
+                        } else if (temp >= 18) {
+                          // Comfortable - yellow
+                          tempIcon = Icons.thermostat;
+                          iconColor = const Color(0xFFFFAA00);
+                          borderColor = const Color(0xFFFFAA00).withValues(alpha: 0.3);
+                        } else if (temp >= 14) {
+                          // Cool - dim yellow
+                          tempIcon = Icons.ac_unit;
+                          iconColor = const Color(0xFFCCAA00);
+                          borderColor = const Color(0xFFCCAA00).withValues(alpha: 0.2);
+                        } else {
+                          // Cold - gray
+                          tempIcon = Icons.severe_cold;
+                          iconColor = const Color(0xFF666666);
+                          borderColor = const Color(0xFF2A2A2A);
+                        }
+
+                        return AnimatedSlot<bool>(
+                          connect: c.isHeating,
+                          effect: SlotEffect.scale | SlotEffect.fade,
+                          to: (_, heating) => GlassCard(
+                            borderColor: borderColor,
+                            child: Column(
+                              children: [
+                                // Top row: icon, current temp, status
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: iconColor.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        tempIcon,
+                                        color: iconColor,
+                                        size: 28,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            heating ? 'Heating Active' : 'Standby',
+                                            style: TextStyle(
+                                              color: heating ? const Color(0xFFFFAA00) : Colors.white38,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                                            textBaseline: TextBaseline.alphabetic,
+                                            children: [
+                                              AnimatedValueSlot<double>(
+                                                connect: c.temperature,
+                                                to: (_, t) => Text(
+                                                  '${t.toStringAsFixed(1)}°',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Text(
+                                                'Current',
+                                                style: TextStyle(
+                                                  color: Colors.white38,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                // Bottom row: Target temperature controls
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF252525),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Text(
+                                        'Target',
+                                        style: TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      // Minus button
+                                      GestureDetector(
+                                        onTap: () => c.setTargetTemp(c.targetTemp.val - 0.5),
+                                        child: Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1A1A1A),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Icon(
+                                            Icons.remove,
+                                            color: Color(0xFFFFAA00),
+                                            size: 24,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      // Target temp display
+                                      AnimatedValueSlot<double>(
+                                        connect: c.targetTemp,
+                                        to: (_, target) => Text(
+                                          '${target.toStringAsFixed(1)}°',
+                                          style: const TextStyle(
+                                            color: Color(0xFFFFAA00),
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      // Plus button
+                                      GestureDetector(
+                                        onTap: () => c.setTargetTemp(c.targetTemp.val + 0.5),
+                                        child: Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1A1A1A),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Icon(
+                                            Icons.add,
+                                            color: Color(0xFFFFAA00),
+                                            size: 24,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // Section Header - Lights
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+                      child: Text(
+                        'Room Lights',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Light Controls Grid with GestureAnimatedSlot
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            childAspectRatio: 0.8,
+                            crossAxisSpacing: 4,
+                            mainAxisSpacing: 4,
+                          ),
+                      delegate: SliverChildListDelegate([
+                        _LightCard(
+                          'Living\nRoom',
+                          c.livingRoomLight,
+                          Icons.weekend,
+                        ),
+                        _LightCard('Bedroom', c.bedroomLight, Icons.bed),
+                        _LightCard('Kitchen', c.kitchenLight, Icons.kitchen),
+                      ]),
+                    ),
+                  ),
+
+                  // Security Card with PulseSlot for flashing when armed
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+                      child: Text(
+                        'Security',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(
+                    child: PulseSlot<bool>(
+                      connect: c.isArmed,
+                      when: (armed) => armed, // Pulse when armed
+                      to: (_, armed) => AnimatedSlot<bool>(
+                        connect: c.isArmed,
+                        effect:
+                            SlotEffect.scale |
+                            SlotEffect.fade |
+                            SlotEffect.slide,
+                        to: (_, _) => armed
+                            ? _ArmedPulseWrapper(controller: c)
+                            : _SecurityCard(controller: c),
+                      ),
+                    ),
+                  ),
+
+                  // Devices Section with ShimmerSlot
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+                      child: Text(
+                        'Connected Devices',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(
+                    child: ShimmerSlot<List<Device>?>(
+                      connect: c.devices,
+                      when: (devices) => devices == null,
+                      shimmer: Column(
+                        children: List.generate(
+                          3,
+                          (_) => GlassCard(
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      to: (_, devices) => Column(
+                        children: devices!.map((d) => DeviceCard(d)).toList(),
+                      ),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                ],
+              ),
             ),
+          ),
+          // Red flash overlay for alarm arming
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Slot<double>(
+                connect: c.screenFlashIntensity,
+                to: (_, intensity) => intensity > 0
+                    ? Container(
+                        color: const Color(
+                          0xFFFF4757,
+                        ).withValues(alpha: intensity),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ),
+          // Scan wave overlay - Neuron reactive with SpringSlot animation
+          Positioned.fill(
+            child: IgnorePointer(child: _ScanWaveOverlay(controller: c)),
           ),
         ],
       ),
-      body: ListView(
+    );
+  }
+}
+
+// Security card widget - uses Neuron AnimatedSlots with dramatic effects (no nesting!)
+class _SecurityCard extends StatelessWidget {
+  final SmartHomeController controller;
+
+  const _SecurityCard({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+
+    return GlassCard(
+      borderColor: c.isArmed.val
+          ? const Color(0xFFFF4444).withValues(alpha: 0.4)
+          : c.isArming.val
+          ? const Color(0xFFFFAA00).withValues(alpha: 0.3)
+          : const Color(0xFF2A2A2A),
+      child: Row(
         children: [
-          // Energy usage with spring animation
-          SpringSlot<double>(
-            connect: c.energyUsage,
-            spring: SpringConfig.smooth,
-            to: (_, watts) => ListTile(
-              leading: Icon(Icons.bolt, color: Colors.amber),
-              title: Text('Energy Usage'),
-              trailing: Text('${watts.toStringAsFixed(0)}W'),
-            ),
-          ),
-          
-          // Thermostat with morph animation
-          MorphSlot<bool>(
-            connect: c.isHeating,
-            config: MorphConfig(duration: Duration(milliseconds: 500)),
-            morphBuilder: (_, heating) => MorphableWidget(
+          // Icon/Countdown container - single AnimatedSlot on arming state
+          AnimatedSlot<bool>(
+            connect: c.isArming,
+            effect:
+                SlotEffect.scale |
+                SlotEffect.fade |
+                SlotEffect.flip |
+                SlotEffect.bounce,
+            to: (_, arming) => Container(
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: heating ? Colors.orange[100] : Colors.blue[50],
+                color: c.isArmed.val
+                    ? const Color(0xFFFF4444).withValues(alpha: 0.15)
+                    : arming
+                    ? const Color(0xFFFFAA00).withValues(alpha: 0.15)
+                    : const Color(0xFF252525),
                 borderRadius: BorderRadius.circular(12),
               ),
-              size: Size(double.infinity, heating ? 120 : 80),
-              child: ListTile(
-                leading: Icon(
-                  heating ? Icons.whatshot : Icons.ac_unit,
-                  color: heating ? Colors.orange : Colors.blue,
-                ),
-                title: Text(heating ? 'Heating...' : 'Cooling'),
-                subtitle: Slot<double>(
-                  connect: c.temperature,
-                  to: (_, temp) => Text('${temp.toStringAsFixed(1)}°C'),
-                ),
-              ),
+              child: arming
+                  // Countdown with dramatic animation
+                  ? AnimatedSlot<int>(
+                      connect: c.armingCountdown,
+                      effect:
+                          SlotEffect.scale |
+                          SlotEffect.fade |
+                          SlotEffect.flip |
+                          SlotEffect.slide |
+                          SlotEffect.bounce,
+                      to: (_, countdown) => SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: Center(
+                          child: Text(
+                            '$countdown',
+                            style: const TextStyle(
+                              color: Color(0xFFFFAA00),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      c.isArmed.val ? Icons.shield : Icons.shield_outlined,
+                      color: c.isArmed.val ? const Color(0xFFFF4444) : Colors.white54,
+                      size: 28,
+                    ),
             ),
           ),
-          
-          // Light controls with gesture animations
-          _LightToggle('Living Room', c.livingRoomLight, Icons.weekend),
-          _LightToggle('Bedroom', c.bedroomLight, Icons.bed),
-          _LightToggle('Kitchen', c.kitchenLight, Icons.kitchen),
-          
-          // Security status with animated transitions
-          AnimatedSlot<bool>(
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Status text - single AnimatedSlot on armed state
+                AnimatedSlot<bool>(
+                  connect: c.isArmed,
+                  effect:
+                      SlotEffect.slide |
+                      SlotEffect.fade |
+                      SlotEffect.scale |
+                      SlotEffect.bounce,
+                  to: (_, armed) => Text(
+                    armed
+                        ? 'ALARM ARMED'
+                        : c.isArming.val
+                        ? 'Arming...'
+                        : 'Security Disarmed',
+                    style: TextStyle(
+                      color: armed ? const Color(0xFFFF4444) : c.isArming.val ? const Color(0xFFFFAA00) : Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Subtitle with countdown animation
+                AnimatedSlot<int>(
+                  connect: c.armingCountdown,
+                  effect:
+                      SlotEffect.fade |
+                      SlotEffect.slide |
+                      SlotEffect.scale |
+                      SlotEffect.bounce,
+                  to: (_, countdown) => Text(
+                    c.isArmed.val
+                        ? 'All sensors active'
+                        : c.isArming.val
+                        ? 'System will arm in $countdown seconds'
+                        : 'Tap to arm system',
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Button with GestureAnimatedSlot - reads other values directly
+          GestureAnimatedSlot<bool>(
             connect: c.isArmed,
-            effect: SlotEffect.scale | SlotEffect.fade,
-            to: (_, armed) => ListTile(
-              leading: Icon(
-                armed ? Icons.shield : Icons.shield_outlined,
-                color: armed ? Colors.green : Colors.grey,
+            pressedScale: 0.85,
+            onTap: () {
+              if (c.isArmed.val) {
+                c.disarmSecurity();
+              } else if (c.isArming.val) {
+                c.cancelArming();
+              } else {
+                c.armSecurity();
+              }
+            },
+            to: (_, armed) => Container(
+              width: 80,
+              height: 40,
+              decoration: BoxDecoration(
+                color: armed
+                    ? const Color(0xFF2A5A2A)
+                    : const Color(0xFFFFAA00),
+                borderRadius: BorderRadius.circular(8),
               ),
-              title: Text(armed ? 'Security Armed' : 'Security Disarmed'),
-              trailing: Switch(
-                value: armed,
-                onChanged: (_) => armed ? c.disarmSecurity() : c.armSecurity(),
-              ),
-            ),
-          ),
-          
-          // Devices with shimmer loading
-          ShimmerSlot<List<Device>?>(
-            connect: c.devices,
-            when: (devices) => devices == null,
-            shimmer: Column(
-              children: List.generate(3, (_) => 
-                Container(
-                  height: 60,
-                  margin: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
+              child: Center(
+                child: Text(
+                  armed
+                      ? 'Disarm'
+                      : c.isArming.val
+                      ? 'Cancel'
+                      : 'Arm',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: armed ? const Color(0xFF4ADE80) : Colors.black,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-            ),
-            to: (_, devices) => Column(
-              children: devices!.map((d) => DeviceCard(d)).toList(),
             ),
           ),
         ],
@@ -746,31 +1891,184 @@ class SmartHomePage extends StatelessWidget {
   }
 }
 
-// Reusable light toggle with press animation
-class _LightToggle extends StatelessWidget {
+// Light card with GestureAnimatedSlot
+class _LightCard extends StatelessWidget {
   final String name;
   final Signal<bool> light;
   final IconData icon;
-  
-  const _LightToggle(this.name, this.light, this.icon);
-  
+
+  const _LightCard(this.name, this.light, this.icon);
+
   @override
   Widget build(BuildContext context) {
     return GestureAnimatedSlot<bool>(
       connect: light,
       onTap: () => light.emit(!light.val),
-      pressedScale: 0.95,
-      to: (_, isOn) => ListTile(
-        leading: Icon(icon, color: isOn ? Colors.amber : Colors.grey),
-        title: Text(name),
-        trailing: Icon(
-          isOn ? Icons.lightbulb : Icons.lightbulb_outline,
-          color: isOn ? Colors.amber : Colors.grey,
+      pressedScale: 0.92,
+      to: (_, isOn) => GlassCard(
+        margin: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(10),
+        borderColor: isOn
+            ? const Color(0xFFFFAA00).withValues(alpha: 0.4)
+            : const Color(0xFF2A2A2A),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isOn
+                    ? const Color(0xFFFFAA00).withValues(alpha: 0.15)
+                    : const Color(0xFF252525),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: isOn ? const Color(0xFFFFAA00) : Colors.white38,
+                size: 22,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: Text(
+                name,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                style: TextStyle(
+                  color: isOn ? Colors.white : Colors.white38,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: isOn
+                    ? const Color(0xFFFFAA00).withValues(alpha: 0.15)
+                    : const Color(0xFF252525),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                isOn ? 'ON' : 'OFF',
+                style: TextStyle(
+                  color: isOn ? const Color(0xFFFFAA00) : Colors.white38,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+// Device card widget - flat dark style
+class DeviceCard extends StatelessWidget {
+  final Device device;
+
+  const DeviceCard(this.device, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: device.isOnline
+                  ? const Color(0xFFFFAA00).withValues(alpha: 0.15)
+                  : const Color(0xFF252525),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              _getIconForType(device.type),
+              color: device.isOnline ? const Color(0xFFFFAA00) : Colors.white38,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  device.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  device.type.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: device.isOnline
+                  ? const Color(0xFF2A5A2A)
+                  : const Color(0xFF5A2A2A),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  device.isOnline ? Icons.wifi : Icons.wifi_off,
+                  color: device.isOnline
+                      ? const Color(0xFF4ADE80)
+                      : const Color(0xFFFF4444),
+                  size: 14,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  device.isOnline ? 'Online' : 'Offline',
+                  style: TextStyle(
+                    color: device.isOnline
+                        ? const Color(0xFF4ADE80)
+                        : const Color(0xFFFF4444),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconForType(String type) {
+    switch (type) {
+      case 'entertainment':
+        return Icons.tv;
+      case 'audio':
+        return Icons.speaker;
+      case 'appliance':
+        return Icons.smart_toy;
+      default:
+        return Icons.devices;
+    }
+  }
+}
+
 ```
 
 ---

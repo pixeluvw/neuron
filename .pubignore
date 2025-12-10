@@ -1,0 +1,7 @@
+# Files and folders to exclude from pub.dev package
+
+# Exclude docs folder (uses plural naming convention)
+docs/
+
+# Exclude build artifacts
+build/

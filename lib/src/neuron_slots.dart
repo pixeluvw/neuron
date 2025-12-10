@@ -824,7 +824,8 @@ class MultiSlot extends StatefulWidget {
   const MultiSlot._({
     super.key,
     required List<NeuronAtom> signals,
-    required Widget Function(BuildContext context, List<dynamic> values) builder,
+    required Widget Function(BuildContext context, List<dynamic> values)
+        builder,
   })  : _signals = signals,
         _builder = builder;
 
@@ -872,8 +873,12 @@ class MultiSlot extends StatefulWidget {
   /// Creates a MultiSlot for four signals with type-safe builder.
   static Widget t4<T1, T2, T3, T4>({
     Key? key,
-    required (NeuronAtom<T1>, NeuronAtom<T2>, NeuronAtom<T3>, NeuronAtom<T4>)
-        connect,
+    required (
+      NeuronAtom<T1>,
+      NeuronAtom<T2>,
+      NeuronAtom<T3>,
+      NeuronAtom<T4>
+    ) connect,
     required Widget Function(BuildContext context, T1 v1, T2 v2, T3 v3, T4 v4)
         to,
   }) {

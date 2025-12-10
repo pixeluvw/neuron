@@ -113,7 +113,8 @@ sealed class AsyncState<T> {
     return switch (this) {
       AsyncLoading<T>() => loading(),
       AsyncData<T>(:final value) => data(value),
-      AsyncError<T>(:final error, :final stackTrace) => onError(error, stackTrace),
+      AsyncError<T>(:final error, :final stackTrace) =>
+        onError(error, stackTrace),
     };
   }
 
@@ -567,8 +568,9 @@ class _DependencyTracker {
     // ─────────────────────────────────────────────────────────────────────────
     if (_computingStack.contains(computed)) {
       // Build a human-readable chain for the error message
-      final chain =
-          _computingStack.map((c) => c.debugLabel ?? 'Computed@${c.hashCode}').toList();
+      final chain = _computingStack
+          .map((c) => c.debugLabel ?? 'Computed@${c.hashCode}')
+          .toList();
       throw CircularDependencyError(chain);
     }
 
@@ -576,8 +578,8 @@ class _DependencyTracker {
     // Step 2: Set up tracking context
     // ─────────────────────────────────────────────────────────────────────────
     _computingStack.add(computed);
-    final previousDependencies = _currentDependencies;  // Save outer context
-    final dependencies = _currentDependencies = <NeuronAtom>{};  // Fresh set
+    final previousDependencies = _currentDependencies; // Save outer context
+    final dependencies = _currentDependencies = <NeuronAtom>{}; // Fresh set
 
     try {
       // ───────────────────────────────────────────────────────────────────────
@@ -854,6 +856,7 @@ class Computed<T> extends NeuronAtom<T> {
         void listener() {
           _markStale();
         }
+
         _subscriptions[dep] = listener;
         dep.addListener(listener);
       }

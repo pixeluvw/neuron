@@ -1053,18 +1053,16 @@ class _AsyncSlotState<T> extends State<AsyncSlot<T>> {
   @override
   Widget build(BuildContext context) {
     return switch (_state) {
-      AsyncLoading<T>() =>
-        widget.onLoading?.call(context) ??
-            const Center(child: CircularProgressIndicator()),
+      AsyncLoading<T>() => widget.onLoading?.call(context) ??
+          const Center(child: CircularProgressIndicator()),
       AsyncData<T>(:final value) => widget.onData(context, value),
-      AsyncError<T>(:final error) =>
-        widget.onError?.call(context, error) ??
-            Center(
-              child: Text(
-                "Error: $error",
-                style: const TextStyle(color: Colors.red),
-              ),
+      AsyncError<T>(:final error) => widget.onError?.call(context, error) ??
+          Center(
+            child: Text(
+              "Error: $error",
+              style: const TextStyle(color: Colors.red),
             ),
+          ),
     };
   }
 }
