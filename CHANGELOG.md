@@ -5,6 +5,16 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2025-12-10
+
+### Added
+- Smart Home screenshots (smart_home_1.png, smart_home_2.png, smart_home_3.png)
+- Signal/Slot blueprint diagram for README
+
+### Changed
+- Improved email validation example with proper regex in AnimatedFormSlot documentation
+- Updated README diagram to use image instead of ASCII art
+
 ## [1.2.4] - 2025-12-10
 
 ### Changed

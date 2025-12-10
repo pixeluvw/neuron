@@ -2628,9 +2628,13 @@ enum FormAnimationEffect {
 ///   late final emailError = Signal<String?>('').bind(this);
 ///   late final emailFocused = Signal<bool>(false).bind(this);
 ///
+///   static final _emailRegex = RegExp(
+///     r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+///   );
+///
 ///   String? validateEmail(String value) {
 ///     if (value.isEmpty) return 'Email is required';
-///     if (!value.contains('@')) return 'Invalid email';
+///     if (!_emailRegex.hasMatch(value)) return 'Invalid email format';
 ///     return null;
 ///   }
 /// }

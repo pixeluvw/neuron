@@ -83,12 +83,9 @@ Slot<int>(
 
 ### The Connection
 
-```
-  SIGNAL                        SLOT
-+-----------+    connect    +-----------+
-|  emit(5)  |  ---------->  | Text('5') |
-+-----------+               +-----------+
-```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pixeluvw/neuron/master/example/assets/signal_slot_diagram.png" width="600" alt="Signal-Slot Connection Diagram"/>
+</p>
 
 When you call `count.emit(5)`, **only** the Slot widgets connected to `count` rebuild—not the entire widget tree. This is fine-grained reactivity.
 
@@ -585,9 +582,9 @@ MorphSlot<bool>(
 A complete example showing how different Slots work together:
 
 <p align="center">
-  <img src="example/assets/smart_home_1.png" width="250" alt="Smart Home Dashboard"/>
-  <img src="example/assets/smart_home_2.png" width="250" alt="Smart Home Controls"/>
-  <img src="example/assets/smart_home_3.png" width="250" alt="Smart Home Alert"/>
+  <img src="https://raw.githubusercontent.com/pixeluvw/neuron/master/example/assets/smart_home_1.png" width="250" alt="Smart Home Dashboard"/>
+  <img src="https://raw.githubusercontent.com/pixeluvw/neuron/master/example/assets/smart_home_2.png" width="250" alt="Smart Home Controls"/>
+  <img src="https://raw.githubusercontent.com/pixeluvw/neuron/master/example/assets/smart_home_3.png" width="250" alt="Smart Home Alert"/>
 </p>
 
 ### Controller
