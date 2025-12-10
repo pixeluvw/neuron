@@ -5,6 +5,19 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2025-12-10
+
+### Added
+- Smart Home example screenshots in README
+- Comprehensive documentation and comments to core files
+- HTML section comments in README for better navigation
+
+### Changed
+- Improved code formatting across lib and test files
+
+### Fixed
+- Escaped angle brackets in doc comments to fix `unintended_html_in_doc_comment` warnings
+
 ## [1.2.0] - 2025-12-09
 
 ### Added
