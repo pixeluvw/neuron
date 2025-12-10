@@ -84,12 +84,10 @@ Slot<int>(
 ### The Connection
 
 ```
-┌─────────────────┐         ┌─────────────────┐
-│     SIGNAL      │         │      SLOT       │
-│                 │ connect │                 │
-│  count.emit(5)  │ ───────►│  Text('5')      │
-│                 │         │  rebuilds       │
-└─────────────────┘         └─────────────────┘
+  SIGNAL                        SLOT
++-----------+    connect    +-----------+
+|  emit(5)  |  ---------->  | Text('5') |
++-----------+               +-----------+
 ```
 
 When you call `count.emit(5)`, **only** the Slot widgets connected to `count` rebuild—not the entire widget tree. This is fine-grained reactivity.
