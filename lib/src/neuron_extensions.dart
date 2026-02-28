@@ -37,11 +37,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' show ImageFilter;
-import 'dart:io' show ProcessInfo;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Icons, Colors;
 import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
+
+import 'platform/process_info_stub.dart'
+    if (dart.library.io) 'platform/process_info_io.dart';
+
 import 'neuron_core.dart';
 import 'debug/index.dart';
 

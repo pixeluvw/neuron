@@ -119,38 +119,35 @@ class NeuronAtomBuilder<T> extends StatefulWidget {
 
 class _NeuronAtomBuilderState<T> extends State<NeuronAtomBuilder<T>> {
   late T _value;
-  VoidCallback? _cancel;
 
   @override
   void initState() {
     super.initState();
     _value = widget.atom.value;
-    _subscribe();
+    widget.atom.addListener(_handleChange);
   }
 
-  void _subscribe() {
-    _cancel = widget.atom.subscribe(() {
-      if (mounted) {
-        setState(() {
-          _value = widget.atom.value;
-        });
-      }
-    });
+  void _handleChange() {
+    if (mounted) {
+      setState(() {
+        _value = widget.atom.value;
+      });
+    }
   }
 
   @override
   void didUpdateWidget(NeuronAtomBuilder<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.atom != oldWidget.atom) {
-      _cancel?.call();
+      oldWidget.atom.removeListener(_handleChange);
       _value = widget.atom.value;
-      _subscribe();
+      widget.atom.addListener(_handleChange);
     }
   }
 
   @override
   void dispose() {
-    _cancel?.call();
+    widget.atom.removeListener(_handleChange);
     super.dispose();
   }
 

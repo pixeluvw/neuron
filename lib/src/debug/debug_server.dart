@@ -1,7 +1,8 @@
 // ignore_for_file: avoid_print
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' if (dart.library.html) 'debug_ws_stub.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -214,6 +215,7 @@ class NeuronDebugServer {
 
   void _launchDashboard(String host, int port) async {
     final url = 'http://${host == '0.0.0.0' ? 'localhost' : host}:$port/ui';
+    if (kIsWeb) return;
     try {
       if (Platform.isWindows) {
         await Process.start('cmd', ['/c', 'start', url]);
@@ -232,6 +234,7 @@ class NeuronDebugServer {
   /// When running on Android: prints instructions for the developer.
   /// When running on desktop: attempts to run `adb forward` automatically.
   Future<void> _setupAdbForward(int port) async {
+    if (kIsWeb) return;
     if (Platform.isAndroid) {
       // Running on Android device - print instructions
       _adbForwardActive = false;
@@ -255,6 +258,7 @@ class NeuronDebugServer {
   /// Try to run ADB forward from the host machine.
   /// Call this static method from your development scripts or IDE.
   static Future<bool> setupAdbPortForward({int port = 9090}) async {
+    if (kIsWeb) return false;
     final adbPath = await _findAdb();
     if (adbPath == null) {
       print('Neuron: ADB not found in PATH or common locations');
@@ -292,6 +296,7 @@ class NeuronDebugServer {
 
   /// Find ADB executable in PATH or common installation locations.
   static Future<String?> _findAdb() async {
+    if (kIsWeb) return null;
     // First, check if adb is in PATH
     try {
       final result = await Process.run(
@@ -352,6 +357,7 @@ class NeuronDebugServer {
 
   /// Remove ADB port forward when stopping the server.
   static Future<void> removeAdbPortForward({int port = 9090}) async {
+    if (kIsWeb) return;
     final adbPath = await _findAdb();
     if (adbPath == null) return;
 

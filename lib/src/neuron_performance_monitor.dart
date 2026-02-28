@@ -81,7 +81,7 @@ class NeuronPerformanceMonitor {
   void _updateMemory() {
     try {
       // Get current RSS (Resident Set Size) in bytes
-      final info = ProcessInfo.currentRss;
+      final info = ProcessInfoProxy.currentRss;
       _currentMemory = info;
       _memoryHistory.add(info);
 
@@ -167,13 +167,13 @@ class NeuronPerformanceMonitor {
     }
 
     // Benchmark 5: Memory stress test
-    final memoryBefore = ProcessInfo.currentRss;
+    final memoryBefore = ProcessInfoProxy.currentRss;
     final signals = <Signal<int>>[];
     for (int i = 0; i < 10000; i++) {
       signals.add(Signal<int>(i));
     }
     await Future.delayed(const Duration(milliseconds: 100));
-    final memoryAfter = ProcessInfo.currentRss;
+    final memoryAfter = ProcessInfoProxy.currentRss;
     results['memoryStress'] = {
       'signalsCreated': 10000,
       'memoryUsedMB': (memoryAfter - memoryBefore) / (1024 * 1024),

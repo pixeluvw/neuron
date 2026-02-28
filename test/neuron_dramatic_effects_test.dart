@@ -202,8 +202,10 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
+            key: UniqueKey(),
             home: Scaffold(
               body: AnimatedSlot<int>(
+                key: UniqueKey(),
                 connect: signal,
                 effect: effect,
                 to: (context, value) => Text('$value'),

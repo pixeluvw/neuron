@@ -254,7 +254,7 @@ class Signal<T> extends NeuronAtom<T> {
   /// Debug label for identification in DevTools.
   final String? debugLabel;
 
-  final StreamController<T> _streamController = StreamController<T>.broadcast();
+  StreamController<T>? _streamController;
 
   /// Creates a signal with an initial value.
   Signal(
@@ -290,7 +290,7 @@ class Signal<T> extends NeuronAtom<T> {
     assert(!isDisposed, 'Cannot emit on a disposed Signal');
     if (value != val) {
       value = val;
-      _streamController.add(val);
+      _streamController?.add(val);
     }
   }
 
@@ -313,11 +313,14 @@ class Signal<T> extends NeuronAtom<T> {
   ///   .where((val) => val > 10)
   ///   .listen((val) => print('Count exceeded 10: $val'));
   /// ```
-  Stream<T> get stream => _streamController.stream;
+  Stream<T> get stream {
+    _streamController ??= StreamController<T>.broadcast();
+    return _streamController!.stream;
+  }
 
   @override
   void dispose() {
-    _streamController.close();
+    _streamController?.close();
     super.dispose();
   }
 }
@@ -686,7 +689,7 @@ class Computed<T> extends NeuronAtom<T> {
 
   // Dependency management
   Set<NeuronAtom> _dependencies = {};
-  final Map<NeuronAtom, VoidCallback> _subscriptions = {};
+  bool _isSubscribed = false;
 
   /// Creates a computed signal with automatic dependency tracking.
   ///
@@ -724,7 +727,7 @@ class Computed<T> extends NeuronAtom<T> {
     _userOnListen?.call();
     // When first listener added, sync value and subscribe to dependencies
     _recompute();
-    _setupSubscriptions();
+    _subscribeAll();
   }
 
   /// Called when the last listener is removed - tears down subscriptions.
@@ -733,7 +736,7 @@ class Computed<T> extends NeuronAtom<T> {
     super.onInactive();
     _userOnCancel?.call();
     // When last listener removed, unsubscribe from dependencies (go cold)
-    _teardownSubscriptions();
+    _unsubscribeAll();
     _isStale = true; // Mark stale so next access recomputes
   }
 
@@ -760,7 +763,9 @@ class Computed<T> extends NeuronAtom<T> {
     );
     // Force these as dependencies even if not accessed in first compute
     computed._dependencies = dependencies.toSet();
-    computed._setupSubscriptions();
+    if (computed.hasListeners) {
+      computed._subscribeAll();
+    }
     return computed;
   }
 
@@ -818,10 +823,8 @@ class Computed<T> extends NeuronAtom<T> {
 
       // Update dependencies if they changed
       if (!_setEquals(newDependencies, _dependencies)) {
+        _updateSubscriptions(newDependencies);
         _dependencies = newDependencies;
-        if (hasListeners) {
-          _setupSubscriptions();
-        }
       }
 
       _isStale = false;
@@ -837,28 +840,32 @@ class Computed<T> extends NeuronAtom<T> {
     }
   }
 
-  void _setupSubscriptions() {
-    // Unsubscribe from old dependencies not in new set
-    final toRemove = <NeuronAtom>[];
-    for (final dep in _subscriptions.keys) {
-      if (!_dependencies.contains(dep)) {
-        dep.removeListener(_subscriptions[dep]!);
-        toRemove.add(dep);
+  void _subscribeAll() {
+    if (_isSubscribed) return;
+    for (final dep in _dependencies) {
+      dep.addListener(_markStale);
+    }
+    _isSubscribed = true;
+  }
+
+  void _unsubscribeAll() {
+    if (!_isSubscribed) return;
+    for (final dep in _dependencies) {
+      dep.removeListener(_markStale);
+    }
+    _isSubscribed = false;
+  }
+
+  void _updateSubscriptions(Set<NeuronAtom> newDependencies) {
+    if (!_isSubscribed) return;
+    for (final dep in _dependencies) {
+      if (!newDependencies.contains(dep)) {
+        dep.removeListener(_markStale);
       }
     }
-    for (final dep in toRemove) {
-      _subscriptions.remove(dep);
-    }
-
-    // Subscribe to new dependencies
-    for (final dep in _dependencies) {
-      if (!_subscriptions.containsKey(dep)) {
-        void listener() {
-          _markStale();
-        }
-
-        _subscriptions[dep] = listener;
-        dep.addListener(listener);
+    for (final dep in newDependencies) {
+      if (!_dependencies.contains(dep)) {
+        dep.addListener(_markStale);
       }
     }
   }
@@ -883,16 +890,9 @@ class Computed<T> extends NeuronAtom<T> {
     }
   }
 
-  void _teardownSubscriptions() {
-    for (final entry in _subscriptions.entries) {
-      entry.key.removeListener(entry.value);
-    }
-    _subscriptions.clear();
-  }
-
   @override
   void dispose() {
-    _teardownSubscriptions();
+    _unsubscribeAll();
     _dependencies.clear();
     super.dispose();
   }

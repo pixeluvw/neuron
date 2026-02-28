@@ -5,6 +5,19 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-01
+
+### Added
+- **Web Platform Compatibility**: Completely removed `dart:io` restrictions. Added `ProcessInfoProxy` and WebSocket stubs for native compilation support on Flutter Web (`dart2js` & `dart2wasm`).
+- **O(1) Collection Mutations**: `ListSignal`, `MapSignal`, and `SetSignal` now feature a high-performance `.mutate((data) { })` callback. This enables in-place data modifications that bypass structural equality clones, unlocking 60FPS streaming for extensive payloads.
+- **RAII Finalizers**: `NeuronAtom` instances now natively hook into the Dart VM Garbage Collector. Un-bound, dynamically generated Signals automatically sweeping their `StreamControllers` from memory when abandoned to eliminate lifecycle leaks.
+
+### Changed
+- **O(1) Computed Dependencies**: Eliminated `Map` allocations and unique closure creation entirely inside `Computed` evaluation pipelines by migrating to raw structural `Set` caching and class-bound pointers.
+- **Lazy Stream Controllers**: `Signal` stream properties are now lazily loaded natively rather than eagerly during object instantiation to drastically cut RAM baseline levels.
+- **NeuronAtomBuilder Overhaul**: Prevent anonymous closure spawning during hot-reloads and UI build layouts.
+- Formally added Explicit `platforms:` header into `pubspec.yaml`.
+
 ## [1.2.5] - 2025-12-10
 
 ### Added

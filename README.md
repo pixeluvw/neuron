@@ -98,7 +98,13 @@ When you call `count.emit(5)`, **only** the Slot widgets connected to `count` re
 
 ## ✨ Why Developers Love Neuron
 
-### 1. Zero Boilerplate
+### 1. Blazing Fast & Memory Safe
+**Neuron is structurally built for 60fps data pipelines.**
+- **O(1) Collection Mutations:** High-frequency array updates no longer clone memory payloads into RAM. Just use `list.mutate((data) => data.add(x))`.
+- **RAII Finalizers:** Temporary or anonymous `Signal` streams are automatically swept by the Dart VM Garbage Collector to prevent memory leaks entirely.
+- **Web & Cross-Platform:** 100% native declarative compilation compatibility across iOS, Android, macOS, Windows, Linux, and Web (WASM/JS).
+
+### 2. Zero Boilerplate
 
 ```dart
 // controller.dart

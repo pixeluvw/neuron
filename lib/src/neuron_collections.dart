@@ -88,6 +88,15 @@ class ListSignal<E> extends Signal<List<E>> {
     super.onCancel,
   }) : super(List<E>.from(initial), debugLabel: debugLabel);
 
+  /// Mutate the list in-place and notify listeners.
+  ///
+  /// High performance alternative to spread operators for massive lists.
+  /// Bypasses object allocation and equality checks.
+  void mutate(void Function(List<E> list) mutator) {
+    mutator(value);
+    notifyListeners();
+  }
+
   /// Add an item to the list.
   void add(E item) {
     emit([...val, item]);
@@ -221,6 +230,15 @@ class MapSignal<K, V> extends Signal<Map<K, V>> {
     super.onCancel,
   }) : super(Map<K, V>.from(initial), debugLabel: debugLabel);
 
+  /// Mutate the map in-place and notify listeners.
+  ///
+  /// High performance alternative for massive maps.
+  /// Bypasses object allocation and equality checks.
+  void mutate(void Function(Map<K, V> map) mutator) {
+    mutator(value);
+    notifyListeners();
+  }
+
   /// Put a key-value pair.
   void put(K key, V value) {
     emit({...val, key: value});
@@ -303,6 +321,15 @@ class SetSignal<E> extends Signal<Set<E>> {
     super.onListen,
     super.onCancel,
   }) : super(Set<E>.from(initial), debugLabel: debugLabel);
+
+  /// Mutate the set in-place and notify listeners.
+  ///
+  /// High performance alternative for huge sets.
+  /// Bypasses object allocation and equality checks.
+  void mutate(void Function(Set<E> set) mutator) {
+    mutator(value);
+    notifyListeners();
+  }
 
   /// Add an element.
   bool add(E element) {

@@ -113,9 +113,9 @@ abstract class Disposable {
 ///
 /// ## Parameters
 ///
-/// - [message]: Context about where the error occurred
-/// - [error]: The actual error/exception object
-/// - [stackTrace]: Stack trace if available (may be null)
+/// - `message`: Context about where the error occurred
+/// - `error`: The actual error/exception object
+/// - `stackTrace`: Stack trace if available (may be null)
 void Function(String message, Object error, StackTrace? stackTrace)
     neuronErrorHandler = _defaultErrorHandler;
 
@@ -145,6 +145,7 @@ void _defaultErrorHandler(
 /// - **Initial value**: Access original value via [initialValue]
 /// - **Previous value**: Track changes via [previousValue]
 /// - **Lifecycle hooks**: [onActive] and [onInactive] for resource management
+/// - **RAII Finalizer**: Automatically calls [dispose] if an atom is garbage collected
 ///
 /// ## Basic Usage
 ///
@@ -204,6 +205,12 @@ void _defaultErrorHandler(
 /// - [AsyncSignal] - For async operations
 /// - [Computed] - For derived values
 class NeuronAtom<T> implements Disposable {
+  static final Finalizer<VoidCallback> _finalizer =
+      Finalizer<VoidCallback>((callback) => callback());
+
+  /// Token for finalizer detachment.
+  final Object _finalizerToken = Object();
+
   /// Current value stored in this atom.
   T _value;
 
@@ -274,7 +281,14 @@ class NeuronAtom<T> implements Disposable {
     this.onListen,
     this.onCancel,
   })  : _value = value,
-        _initialValue = value;
+        _initialValue = value {
+    _finalizer.attach(this, () {
+      if (!_disposed) {
+        _disposed = true;
+        _listeners.clear();
+      }
+    }, detach: _finalizerToken);
+  }
 
   /// The current value of the atom.
   ///
@@ -426,6 +440,8 @@ class NeuronAtom<T> implements Disposable {
   /// Disposes the atom, removing all listeners.
   @override
   void dispose() {
+    if (_disposed) return;
+    _finalizer.detach(_finalizerToken);
     _disposed = true;
     _listeners.clear();
   }
