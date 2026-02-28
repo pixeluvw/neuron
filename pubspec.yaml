@@ -1,6 +1,6 @@
 name: neuron
 description: Signal/Slot reactive state management for Flutter. Clean syntax, powerful features including middleware, persistence, time-travel debugging, and code generation support.
-version: 1.2.5
+version: 1.3.0
 homepage: https://github.com/pixeluvw/neuron
 repository: https://github.com/pixeluvw/neuron
 topics:
