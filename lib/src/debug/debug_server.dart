@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' if (dart.library.html) 'debug_ws_stub.dart';
+import 'dart:io' if (dart.library.js_interop) 'debug_ws_stub.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:shelf/shelf.dart';

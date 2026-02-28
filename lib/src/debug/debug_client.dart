@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' if (dart.library.html) 'debug_ws_stub.dart';
+import 'dart:io' if (dart.library.js_interop) 'debug_ws_stub.dart';
 
 import 'debug_event.dart';
 import 'debug_protocol.dart';
