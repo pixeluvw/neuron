@@ -38,3 +38,39 @@ class WebSocketTransformer {
 }
 
 class SocketException implements Exception {}
+
+class InternetAddress {
+  InternetAddress(String address);
+}
+
+class Platform {
+  static const bool isWindows = false;
+  static const bool isMacOS = false;
+  static const bool isLinux = false;
+  static const bool isAndroid = false;
+  static const Map<String, String> environment = {};
+}
+
+class ProcessResult {
+  final int exitCode;
+  final dynamic stdout;
+  final dynamic stderr;
+  ProcessResult(this.exitCode, this.stdout, this.stderr);
+}
+
+class Process {
+  static Future<ProcessResult> start(
+      String executable, List<String> arguments) async {
+    throw UnimplementedError();
+  }
+
+  static Future<ProcessResult> run(
+      String executable, List<String> arguments) async {
+    throw UnimplementedError();
+  }
+}
+
+class File {
+  File(String path);
+  Future<bool> exists() async => false;
+}

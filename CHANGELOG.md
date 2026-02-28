@@ -5,6 +5,11 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-03-01
+
+### Fixed
+- **Pub.dev Platform Support**: Resolved a strict static analysis issue where default `dart:io` compiler imports flagged the package as strictly non-WASM compatible on the pub.dev backend. Defaulted DevTools imports to web-safe stubs, unlocking the verified WebAssembly tier.
+
 ## [1.3.2] - 2026-03-01
 
 ### Docs

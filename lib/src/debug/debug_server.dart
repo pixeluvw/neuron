@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' if (dart.library.js_interop) 'debug_ws_stub.dart';
+import 'debug_ws_stub.dart' if (dart.library.io) 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:shelf/shelf.dart';
@@ -69,7 +69,7 @@ class NeuronDebugServer {
         _handleWebSocket(request);
         return;
       }
-      shelf_io.handleRequest(request, handler);
+      shelf_io.handleRequest(request as dynamic, handler);
     });
 
     // Auto-setup ADB port forwarding for Android development
