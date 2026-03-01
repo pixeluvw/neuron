@@ -975,7 +975,7 @@ class MultiSlot extends StatefulWidget {
 
 class _MultiSlotState extends State<MultiSlot> {
   late List<dynamic> _values;
-  final List<VoidCallback> _cancels = [];
+  final List<AtomListener> _cancels = [];
 
   @override
   void initState() {
@@ -987,20 +987,20 @@ class _MultiSlotState extends State<MultiSlot> {
   void _subscribeAll() {
     for (int i = 0; i < widget._signals.length; i++) {
       final index = i;
-      final cancel = widget._signals[i].subscribe(() {
+      final dynamic cancel = widget._signals[i].subscribe(() {
         if (mounted) {
           setState(() {
             _values[index] = widget._signals[index].value;
           });
         }
       });
-      _cancels.add(cancel);
+      _cancels.add(cancel as AtomListener);
     }
   }
 
   void _unsubscribeAll() {
-    for (final cancel in _cancels) {
-      cancel();
+    for (int i = 0; i < _cancels.length; i++) {
+      widget._signals[i].removeListener(_cancels[i]);
     }
     _cancels.clear();
   }
@@ -1304,6 +1304,8 @@ class _AnimatedValueSlotState<T extends num> extends State<AnimatedValueSlot<T>>
   double _previousValue = 0;
   double _targetValue = 0;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
@@ -1324,12 +1326,12 @@ class _AnimatedValueSlotState<T extends num> extends State<AnimatedValueSlot<T>>
       }
     });
 
-    widget.connect.addListener(_onValueChanged);
+    _listenerHandle = widget.connect.addListener(_onValueChanged);
   }
 
   @override
   void dispose() {
-    widget.connect.removeListener(_onValueChanged);
+    widget.connect.removeListener(_listenerHandle);
     _controller.dispose();
     super.dispose();
   }
@@ -1415,6 +1417,8 @@ class _SpringSlotState<T extends num> extends State<SpringSlot<T>>
   double _targetValue = 0;
   double _velocity = 0;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
@@ -1424,12 +1428,12 @@ class _SpringSlotState<T extends num> extends State<SpringSlot<T>>
     _controller = AnimationController.unbounded(vsync: this);
     _controller.addListener(_onTick);
 
-    widget.connect.addListener(_onValueChanged);
+    _listenerHandle = widget.connect.addListener(_onValueChanged);
   }
 
   @override
   void dispose() {
-    widget.connect.removeListener(_onValueChanged);
+    widget.connect.removeListener(_listenerHandle);
     _controller.dispose();
     super.dispose();
   }
@@ -1650,6 +1654,8 @@ class _PulseSlotState<T> extends State<PulseSlot<T>>
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
@@ -1675,12 +1681,12 @@ class _PulseSlotState<T> extends State<PulseSlot<T>>
     ));
 
     _checkAndStartPulse();
-    widget.connect.addListener(_checkAndStartPulse);
+    _listenerHandle = widget.connect.addListener(_checkAndStartPulse);
   }
 
   @override
   void dispose() {
-    widget.connect.removeListener(_checkAndStartPulse);
+    widget.connect.removeListener(_listenerHandle);
     _controller.dispose();
     super.dispose();
   }
@@ -1855,16 +1861,18 @@ class _DebounceSlotState<T> extends State<DebounceSlot<T>> {
   late T _debouncedValue;
   Timer? _debounceTimer;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
     _debouncedValue = widget.connect.value;
-    widget.connect.addListener(_onValueChanged);
+    _listenerHandle = widget.connect.addListener(_onValueChanged);
   }
 
   @override
   void dispose() {
-    widget.connect.removeListener(_onValueChanged);
+    widget.connect.removeListener(_listenerHandle);
     _debounceTimer?.cancel();
     super.dispose();
   }
@@ -1926,17 +1934,19 @@ class _MemoizedSlotState<T> extends State<MemoizedSlot<T>> {
   late T _cachedValue;
   late Widget _cachedWidget;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
     _cachedValue = widget.connect.value;
     _cachedWidget = widget.to(context, _cachedValue);
-    widget.connect.addListener(_onValueChanged);
+    _listenerHandle = widget.connect.addListener(_onValueChanged);
   }
 
   @override
   void dispose() {
-    widget.connect.removeListener(_onValueChanged);
+    widget.connect.removeListener(_listenerHandle);
     super.dispose();
   }
 
@@ -1999,16 +2009,18 @@ class _ThrottleSlotState<T> extends State<ThrottleSlot<T>> {
   late T _throttledValue;
   bool _isThrottled = false;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
     _throttledValue = widget.connect.value;
-    widget.connect.addListener(_onValueChanged);
+    _listenerHandle = widget.connect.addListener(_onValueChanged);
   }
 
   @override
   void dispose() {
-    widget.connect.removeListener(_onValueChanged);
+    widget.connect.removeListener(_listenerHandle);
     super.dispose();
   }
 
@@ -2072,15 +2084,17 @@ class LazySlot<T> extends StatefulWidget {
 class _LazySlotState<T> extends State<LazySlot<T>> {
   bool _hasBuilt = false;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
-    widget.connect.addListener(_onValueChanged);
+    _listenerHandle = widget.connect.addListener(_onValueChanged);
   }
 
   @override
   void dispose() {
-    widget.connect.removeListener(_onValueChanged);
+    widget.connect.removeListener(_listenerHandle);
     super.dispose();
   }
 
@@ -2819,10 +2833,15 @@ class _AnimatedFormSlotState<T> extends State<AnimatedFormSlot<T>>
         CurvedAnimation(parent: _controller, curve: widget.animationCurve));
   }
 
+  late AtomListener _listenerHandle;
+  AtomListener? _focusHandle;
+
   @override
   void dispose() {
-    widget.connect.removeListener(_onValueChanged);
-    widget.focusedSignal?.removeListener(_onFocusChanged);
+    widget.connect.removeListener(_listenerHandle);
+    if (_focusHandle != null) {
+      widget.focusedSignal?.removeListener(_focusHandle!);
+    }
     _validationTimer?.cancel();
     _controller.dispose();
     super.dispose();
@@ -3267,6 +3286,8 @@ class _MorphSlotState<T> extends State<MorphSlot<T>>
   MorphableWidget? _currentWidget;
   bool _isFirstBuild = true;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
@@ -3281,12 +3302,12 @@ class _MorphSlotState<T> extends State<MorphSlot<T>>
       }
     });
 
-    widget.connect.addListener(_onValueChanged);
+    _listenerHandle = widget.connect.addListener(_onValueChanged);
   }
 
   @override
   void dispose() {
-    widget.connect.removeListener(_onValueChanged);
+    widget.connect.removeListener(_listenerHandle);
     _controller.dispose();
     super.dispose();
   }

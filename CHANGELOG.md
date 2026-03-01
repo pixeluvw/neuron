@@ -5,6 +5,16 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-01
+
+### Added
+- **Multithreading & Vectorization**: Added `IsolateSignal<T, M>` for heavy off-thread computations, enabling concurrent math, filtering, and JSON parsing without blocking the UI thread. Verified SIMD vector processing (`Float32x4List`) compatibility.
+
+### Changed
+- **Zero-Cost Abstractions**: Upgraded the fundamental `VoidCallback` listeners within `NeuronAtom` to use Dart 3 `extension types` (`AtomListener`), completely eliminating closure instantiation overhead.
+- **Arena Memory Allocation**: Implemented `NeuronAtomPool` to intercept `.dispose()` calls, pushing dead atoms into a free-list registry. Standard instantiations now recycle directly from pooled memory, preventing VM GC thrashing during mass UI updates.
+- **Bitmask State**: Compressed `NeuronAtom` booleans into unified integer bitmasks (`_state`) for ultra-fast branch predictions.
+
 ## [1.3.4] - 2026-03-01
 
 ### Changed

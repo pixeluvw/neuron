@@ -55,6 +55,16 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:meta/meta.dart';
 
+/// A zero-cost abstraction for a listener handle.
+///
+/// In Dart 3, this `extension type` completely disappears at runtime.
+/// It wraps a standard `VoidCallback` but adds a generic `.cancel()` wrapper
+/// method, avoiding the creation of an explicit closure allocation in `subscribe`.
+extension type AtomListener(VoidCallback _call) {
+  /// Invokes the underlying listener.
+  void invoke() => _call();
+}
+
 /// Interface for objects that need cleanup when no longer used.
 ///
 /// Classes implementing [Disposable] should release resources, cancel
@@ -127,6 +137,41 @@ void _defaultErrorHandler(
     if (stackTrace != null) {
       // ignore: avoid_print
       print(stackTrace);
+    }
+  }
+}
+
+/// ═══════════════════════════════════════════════════════════════════════════════
+/// ATOM POOLING / ARENA ALLOCATION
+/// ═══════════════════════════════════════════════════════════════════════════════
+///
+/// An object pool for recycling standard [NeuronAtom] instances to avoid GC thrashing
+/// and constructor allocation penalties when rapid instantiations occur (e.g., inside Lists).
+class NeuronAtomPool {
+  static final List<NeuronAtom<dynamic>> _freeList = [];
+  static const int _maxPoolSize = 1000;
+
+  /// Retrieves an atom from the pool, or creates a new one if the pool is empty.
+  static NeuronAtom<T> obtain<T>(T initialValue) {
+    for (int i = 0; i < _freeList.length; i++) {
+      if (_freeList[i] is NeuronAtom<T>) {
+        final atom = _freeList.removeAt(i) as NeuronAtom<T>;
+        // Reset the pooled atom
+        atom._value = initialValue;
+        atom._initialValue = initialValue;
+        atom._previousValue = null;
+        atom._state = 0; // Clear bitmask flags
+        atom._listeners.clear();
+        return atom;
+      }
+    }
+    return NeuronAtom<T>(initialValue);
+  }
+
+  /// Returns an atom to the pool.
+  static void release(NeuronAtom<dynamic> atom) {
+    if (_freeList.length < _maxPoolSize) {
+      _freeList.add(atom);
     }
   }
 }
@@ -208,6 +253,9 @@ class NeuronAtom<T> implements Disposable {
   static final Finalizer<VoidCallback> _finalizer =
       Finalizer<VoidCallback>((callback) => callback());
 
+  static final Type _neuronAtomType = _typeOf<NeuronAtom<dynamic>>();
+  static Type _typeOf<X>() => X;
+
   /// Token for finalizer detachment.
   final Object _finalizerToken = Object();
 
@@ -215,20 +263,39 @@ class NeuronAtom<T> implements Disposable {
   T _value;
 
   /// The value this atom was initialized with (for [reset]).
-  final T _initialValue;
+  T _initialValue;
 
   /// The value before the most recent change (null if never changed).
   T? _previousValue;
 
   /// List of callbacks to invoke when value changes.
-  final List<VoidCallback> _listeners = [];
+  final List<AtomListener> _listeners = [];
 
-  /// Flag indicating this atom has been disposed and should not be used.
-  bool _disposed = false;
+  // ==========================================
+  // High-Performance Bitmask State
+  // ==========================================
+  static const int _flagDisposed = 1 << 0; // 0001
+
+  /// Bitfield packing multiple states into a single integer.
+  int _state = 0;
+
+  /// Modifies the internal state bitmask.
+  @pragma('vm:prefer-inline')
+  void _setFlag(int flag, bool value) {
+    if (value) {
+      _state |= flag;
+    } else {
+      _state &= ~flag;
+    }
+  }
+
+  /// Evaluates a specific state flag.
+  @pragma('vm:prefer-inline')
+  bool _hasFlag(int flag) => (_state & flag) != 0;
 
   /// Whether this atom has been disposed.
   @protected
-  bool get isDisposed => _disposed;
+  bool get isDisposed => _hasFlag(_flagDisposed);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Configuration Options
@@ -283,8 +350,8 @@ class NeuronAtom<T> implements Disposable {
   })  : _value = value,
         _initialValue = value {
     _finalizer.attach(this, () {
-      if (!_disposed) {
-        _disposed = true;
+      if (!_hasFlag(_flagDisposed)) {
+        _setFlag(_flagDisposed, true);
         _listeners.clear();
       }
     }, detach: _finalizerToken);
@@ -303,7 +370,7 @@ class NeuronAtom<T> implements Disposable {
   T? get previousValue => _previousValue;
 
   set value(T newValue) {
-    if (_disposed) return;
+    if (_hasFlag(_flagDisposed)) return;
 
     // Apply guard if present
     final guardedValue = guard != null ? guard!(_value, newValue) : newValue;
@@ -325,20 +392,22 @@ class NeuronAtom<T> implements Disposable {
   }
 
   /// Adds a listener to be called when the value changes.
-  void addListener(VoidCallback listener) {
-    if (_disposed) return;
+  AtomListener addListener(VoidCallback listener) {
+    if (_hasFlag(_flagDisposed)) return AtomListener(() {});
 
+    final handle = AtomListener(listener);
     final wasEmpty = _listeners.isEmpty;
-    _listeners.add(listener);
+    _listeners.add(handle);
 
     if (wasEmpty) {
       onActive();
     }
+    return handle;
   }
 
   /// Removes a previously added listener.
-  void removeListener(VoidCallback listener) {
-    if (_disposed) return;
+  void removeListener(AtomListener listener) {
+    if (_hasFlag(_flagDisposed)) return;
 
     _listeners.remove(listener);
 
@@ -356,9 +425,10 @@ class NeuronAtom<T> implements Disposable {
   /// cancel();
   /// ```
   VoidCallback subscribe(VoidCallback listener) {
-    assert(!_disposed, 'Cannot subscribe to a disposed NeuronAtom');
-    addListener(listener);
-    return () => removeListener(listener);
+    assert(
+        !_hasFlag(_flagDisposed), 'Cannot subscribe to a disposed NeuronAtom');
+    final handle = addListener(listener);
+    return () => removeListener(handle);
   }
 
   /// Manually notifies all listeners.
@@ -366,8 +436,9 @@ class NeuronAtom<T> implements Disposable {
   /// Use this if you need to trigger updates even if the value hasn't changed,
   /// or if the value is mutable and has been modified internally.
   void notifyListeners() {
-    assert(!_disposed, 'Cannot notify listeners on a disposed NeuronAtom');
-    if (_disposed) return;
+    assert(!_hasFlag(_flagDisposed),
+        'Cannot notify listeners on a disposed NeuronAtom');
+    if (_hasFlag(_flagDisposed)) return;
     if (_listeners.isEmpty) return;
 
     // Track if listeners are modified during notification
@@ -383,11 +454,11 @@ class NeuronAtom<T> implements Disposable {
 
       // If modified, switch to safe copy-based iteration for remaining listeners
       if (listenersModified) {
-        final remaining = List<VoidCallback>.from(_listeners.skip(i));
+        final remaining = List<AtomListener>.from(_listeners.skip(i));
         for (final listener in remaining) {
           try {
             if (_listeners.contains(listener)) {
-              listener();
+              listener.invoke();
             }
           } catch (e, st) {
             neuronErrorHandler('Error in NeuronAtom listener', e, st);
@@ -397,7 +468,7 @@ class NeuronAtom<T> implements Disposable {
       }
 
       try {
-        _listeners[i]();
+        _listeners[i].invoke();
       } catch (e, st) {
         neuronErrorHandler('Error in NeuronAtom listener', e, st);
       }
@@ -440,10 +511,14 @@ class NeuronAtom<T> implements Disposable {
   /// Disposes the atom, removing all listeners.
   @override
   void dispose() {
-    if (_disposed) return;
+    if (_hasFlag(_flagDisposed)) return;
     _finalizer.detach(_finalizerToken);
-    _disposed = true;
+    _setFlag(_flagDisposed, true);
     _listeners.clear();
+
+    if (runtimeType == _neuronAtomType) {
+      NeuronAtomPool.release(this);
+    }
   }
 
   @override

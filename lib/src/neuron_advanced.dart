@@ -996,7 +996,7 @@ class CombinedSignal2<T1, T2, R> extends Signal<R> {
   final Signal<T1> signal1;
   final Signal<T2> signal2;
   final R Function(T1 val1, T2 val2) combiner;
-  final List<VoidCallback> _listeners = [];
+  final List<AtomListener> _listeners = [];
 
   CombinedSignal2(
     this.signal1,
@@ -1007,19 +1007,13 @@ class CombinedSignal2<T1, T2, R> extends Signal<R> {
           combiner(signal1.val, signal2.val),
           debugLabel: debugLabel,
         ) {
-    void listener() {
+    _listeners.add(signal1.addListener(() {
       emit(combiner(signal1.val, signal2.val));
-    }
+    }));
 
-    _listeners.add(listener);
-    signal1.addListener(listener);
-
-    void listener2() {
+    _listeners.add(signal2.addListener(() {
       emit(combiner(signal1.val, signal2.val));
-    }
-
-    _listeners.add(listener2);
-    signal2.addListener(listener2);
+    }));
   }
 
   @override
@@ -1037,7 +1031,7 @@ class CombinedSignal3<T1, T2, T3, R> extends Signal<R> {
   final Signal<T2> signal2;
   final Signal<T3> signal3;
   final R Function(T1 val1, T2 val2, T3 val3) combiner;
-  final List<VoidCallback> _listeners = [];
+  final List<AtomListener> _listeners = [];
 
   CombinedSignal3(
     this.signal1,
@@ -1049,26 +1043,17 @@ class CombinedSignal3<T1, T2, T3, R> extends Signal<R> {
           combiner(signal1.val, signal2.val, signal3.val),
           debugLabel: debugLabel,
         ) {
-    void listener() {
+    _listeners.add(signal1.addListener(() {
       emit(combiner(signal1.val, signal2.val, signal3.val));
-    }
+    }));
 
-    _listeners.add(listener);
-    signal1.addListener(listener);
-
-    void listener2() {
+    _listeners.add(signal2.addListener(() {
       emit(combiner(signal1.val, signal2.val, signal3.val));
-    }
+    }));
 
-    _listeners.add(listener2);
-    signal2.addListener(listener2);
-
-    void listener3() {
+    _listeners.add(signal3.addListener(() {
       emit(combiner(signal1.val, signal2.val, signal3.val));
-    }
-
-    _listeners.add(listener3);
-    signal3.addListener(listener3);
+    }));
   }
 
   @override
@@ -1088,7 +1073,7 @@ class CombinedSignal4<T1, T2, T3, T4, R> extends Signal<R> {
   final Signal<T3> signal3;
   final Signal<T4> signal4;
   final R Function(T1 val1, T2 val2, T3 val3, T4 val4) combiner;
-  final List<VoidCallback> _listeners = [];
+  final List<AtomListener> _listeners = [];
 
   CombinedSignal4(
     this.signal1,
@@ -1101,33 +1086,21 @@ class CombinedSignal4<T1, T2, T3, T4, R> extends Signal<R> {
           combiner(signal1.val, signal2.val, signal3.val, signal4.val),
           debugLabel: debugLabel,
         ) {
-    void listener() {
+    _listeners.add(signal1.addListener(() {
       emit(combiner(signal1.val, signal2.val, signal3.val, signal4.val));
-    }
+    }));
 
-    _listeners.add(listener);
-    signal1.addListener(listener);
-
-    void listener2() {
+    _listeners.add(signal2.addListener(() {
       emit(combiner(signal1.val, signal2.val, signal3.val, signal4.val));
-    }
+    }));
 
-    _listeners.add(listener2);
-    signal2.addListener(listener2);
-
-    void listener3() {
+    _listeners.add(signal3.addListener(() {
       emit(combiner(signal1.val, signal2.val, signal3.val, signal4.val));
-    }
+    }));
 
-    _listeners.add(listener3);
-    signal3.addListener(listener3);
-
-    void listener4() {
+    _listeners.add(signal4.addListener(() {
       emit(combiner(signal1.val, signal2.val, signal3.val, signal4.val));
-    }
-
-    _listeners.add(listener4);
-    signal4.addListener(listener4);
+    }));
   }
 
   @override
@@ -1304,4 +1277,123 @@ class FutureSignal<T> extends AsyncSignal<T> {
   Future<void> reload(Future<T> future) async {
     await execute(() => future);
   }
+}
+
+/// ============================================================================
+/// ISOLATE SIGNAL (OFF-THREAD COMPUTATION)
+/// ============================================================================
+
+/// A signal that computes its value in a background Isolate.
+///
+/// Use [IsolateSignal] when you have computationally heavy operations
+/// that would otherwise block the main UI thread (e.g., massive array processing,
+/// encryption, complex JSON parsing).
+///
+/// Example:
+/// ```dart
+/// final heavySignal = IsolateSignal<String, int>(
+///   1000000, // Message to send
+///   (int count) { // Computed offline in separate Isolate
+///     int result = 0;
+///     for (int i = 0; i < count; i++) result += i;
+///     return "Done: $result";
+///   },
+///   debugLabel: 'HeavyMath',
+/// );
+/// ```
+class IsolateSignal<T, M> extends AsyncSignal<T> {
+  final T Function(M message) _compute;
+  M _currentMessage;
+  Isolate? _isolate;
+  ReceivePort? _receivePort;
+  SendPort? _sendPort;
+
+  IsolateSignal(
+    this._currentMessage,
+    this._compute, {
+    String? debugLabel,
+  }) : super(null, debugLabel: debugLabel) {
+    _startIsolate();
+  }
+
+  /// Sends a new message to the isolate to trigger a recomputation.
+  void compute(M message) {
+    _currentMessage = message;
+    if (_isolate == null) {
+      _startIsolate();
+    } else {
+      emitLoading();
+      _sendPort?.send(message);
+    }
+  }
+
+  Future<void> _startIsolate() async {
+    emitLoading();
+    _receivePort = ReceivePort();
+
+    try {
+      _isolate = await Isolate.spawn(
+        _isolateEntry<T, M>,
+        _IsolateSetup<T, M>(_receivePort!.sendPort, _compute, _currentMessage),
+        debugName: debugLabel ?? 'NeuronIsolateSignal',
+      );
+
+      _receivePort!.listen((message) {
+        if (message is SendPort) {
+          _sendPort = message; // Handshake standard receive port mapping
+        } else if (message is _IsolateError) {
+          emitError(message.error, message.stackTrace);
+        } else {
+          emitData(message as T);
+        }
+      });
+    } catch (e, st) {
+      emitError(e, st);
+    }
+  }
+
+  @override
+  void dispose() {
+    _receivePort?.close();
+    _isolate?.kill(priority: Isolate.immediate);
+    super.dispose();
+  }
+}
+
+/// internal struct linking compute delegates across isolates
+class _IsolateSetup<T, M> {
+  final SendPort sendPort;
+  final T Function(M message) compute;
+  final M initialMessage;
+  _IsolateSetup(this.sendPort, this.compute, this.initialMessage);
+}
+
+/// internal struct bridging isolate exception contexts over to standard signals
+class _IsolateError {
+  final Object error;
+  final StackTrace stackTrace;
+  _IsolateError(this.error, this.stackTrace);
+}
+
+void _isolateEntry<T, M>(_IsolateSetup<T, M> setup) {
+  final receivePort = ReceivePort();
+  setup.sendPort.send(receivePort.sendPort);
+
+  // Compute initial message payload
+  try {
+    final result = setup.compute(setup.initialMessage);
+    setup.sendPort.send(result);
+  } catch (e, st) {
+    setup.sendPort.send(_IsolateError(e, st));
+  }
+
+  // Listen indefinitely for subsequent recomputations
+  receivePort.listen((message) {
+    try {
+      final result = setup.compute(message as M);
+      setup.sendPort.send(result);
+    } catch (e, st) {
+      setup.sendPort.send(_IsolateError(e, st));
+    }
+  });
 }

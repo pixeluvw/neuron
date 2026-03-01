@@ -840,10 +840,12 @@ class Computed<T> extends NeuronAtom<T> {
     }
   }
 
+  AtomListener? _listenerHandle;
+
   void _subscribeAll() {
     if (_isSubscribed) return;
     for (final dep in _dependencies) {
-      dep.addListener(_markStale);
+      _listenerHandle = dep.addListener(_markStale);
     }
     _isSubscribed = true;
   }
@@ -851,7 +853,7 @@ class Computed<T> extends NeuronAtom<T> {
   void _unsubscribeAll() {
     if (!_isSubscribed) return;
     for (final dep in _dependencies) {
-      dep.removeListener(_markStale);
+      dep.removeListener(_listenerHandle!);
     }
     _isSubscribed = false;
   }
@@ -860,12 +862,12 @@ class Computed<T> extends NeuronAtom<T> {
     if (!_isSubscribed) return;
     for (final dep in _dependencies) {
       if (!newDependencies.contains(dep)) {
-        dep.removeListener(_markStale);
+        dep.removeListener(_listenerHandle!);
       }
     }
     for (final dep in newDependencies) {
       if (!_dependencies.contains(dep)) {
-        dep.addListener(_markStale);
+        _listenerHandle = dep.addListener(_markStale);
       }
     }
   }

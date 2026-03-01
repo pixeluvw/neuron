@@ -117,11 +117,13 @@ class NeuronAtomBuilder<T> extends StatefulWidget {
 class _NeuronAtomBuilderState<T> extends State<NeuronAtomBuilder<T>> {
   late T _value;
 
+  late AtomListener _listenerHandle;
+
   @override
   void initState() {
     super.initState();
     _value = widget.atom.value;
-    widget.atom.addListener(_handleChange);
+    _listenerHandle = widget.atom.addListener(_handleChange);
   }
 
   void _handleChange() {
@@ -136,15 +138,15 @@ class _NeuronAtomBuilderState<T> extends State<NeuronAtomBuilder<T>> {
   void didUpdateWidget(NeuronAtomBuilder<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.atom != oldWidget.atom) {
-      oldWidget.atom.removeListener(_handleChange);
+      oldWidget.atom.removeListener(_listenerHandle);
       _value = widget.atom.value;
-      widget.atom.addListener(_handleChange);
+      _listenerHandle = widget.atom.addListener(_handleChange);
     }
   }
 
   @override
   void dispose() {
-    widget.atom.removeListener(_handleChange);
+    widget.atom.removeListener(_listenerHandle);
     super.dispose();
   }
 
@@ -157,7 +159,7 @@ class _NeuronAtomBuilderState<T> extends State<NeuronAtomBuilder<T>> {
 /// Helper class to dispose effects.
 class _EffectDisposer implements Disposable {
   final List<NeuronAtom> dependencies;
-  final List<VoidCallback> listeners;
+  final List<AtomListener> listeners;
 
   _EffectDisposer(this.dependencies, this.listeners);
 
@@ -556,11 +558,9 @@ abstract class NeuronController {
       callback();
     }
 
-    final listeners = <VoidCallback>[];
+    final listeners = <AtomListener>[];
     for (final dep in dependencies) {
-      void listener() => callback();
-      listeners.add(listener);
-      dep.addListener(listener);
+      listeners.add(dep.addListener(() => callback()));
     }
 
     // Store effect disposer for cleanup

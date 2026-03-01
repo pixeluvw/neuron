@@ -34,6 +34,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
