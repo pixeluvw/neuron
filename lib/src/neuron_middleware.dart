@@ -48,33 +48,9 @@ class MiddlewareSignal<T> extends Signal<T> {
 
   @override
   void emit(T val) {
-    final registry = NeuronDebugRegistry.instance;
-    final bool logMiddleware = registry.isEnabled;
-    final List<Map<String, dynamic>> steps = [];
-
     T processedValue = val;
     for (final middleware in middlewares) {
-      final before = processedValue;
       processedValue = middleware.process(super.value, processedValue);
-      if (logMiddleware) {
-        steps.add({
-          'middleware': middleware.runtimeType.toString(),
-          'before': before,
-          'after': processedValue,
-        });
-      }
-    }
-
-    if (logMiddleware) {
-      registry.recordMiddlewareEvent('signal_middleware', {
-        'signalId': registry.idForNotifier(this) ??
-            debugLabel ??
-            runtimeType.toString(),
-        'controller': (registry.idForNotifier(this) ?? '').split('.').first,
-        'oldValue': NeuronDebugEncoder.encodeValue(super.value),
-        'newValue': NeuronDebugEncoder.encodeValue(processedValue),
-        'steps': steps,
-      });
     }
     super.emit(processedValue);
   }

@@ -168,6 +168,3 @@ export 'src/neuron_extensions.dart';
 
 /// Navigation: NeuronRoute, page transitions, middleware
 export 'src/neuron_navigation.dart';
-
-/// Debug: Debug server, registry, snapshots for DevTools integration
-export 'src/debug/index.dart';

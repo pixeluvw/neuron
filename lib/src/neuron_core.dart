@@ -50,13 +50,10 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'neuron_atom.dart';
-import 'debug/index.dart';
-import 'neuron_extensions.dart';
 import 'neuron_signals.dart';
 import 'neuron_navigation.dart';
 
@@ -246,9 +243,6 @@ class Neuron {
   /// - [use] - Get an already installed controller
   static T install<T extends NeuronController>(T controller) {
     _registry[T] = controller;
-    if (NeuronDebugRegistry.instance.isEnabled) {
-      NeuronDebugRegistry.instance.registerController(controller);
-    }
     controller.onInit();
     return controller;
   }
@@ -332,9 +326,6 @@ class Neuron {
   static void uninstall<T extends NeuronController>() {
     if (_registry.containsKey(T)) {
       final controller = _registry[T]!;
-      if (NeuronDebugRegistry.instance.isEnabled) {
-        NeuronDebugRegistry.instance.unregisterController(controller);
-      }
       controller.dispose();
       _registry.remove(T);
     }
@@ -343,9 +334,6 @@ class Neuron {
   /// Clears all registered controllers and disposes them.
   static void clearAll() {
     for (final controller in _registry.values) {
-      if (NeuronDebugRegistry.instance.isEnabled) {
-        NeuronDebugRegistry.instance.unregisterController(controller);
-      }
       controller.dispose();
     }
     _registry.clear();
@@ -606,41 +594,7 @@ extension SignalBinding<T extends NeuronAtom<S>, S> on T {
   /// ```
   T bind(NeuronController parent) {
     parent._autoDispose(this);
-
-    final registry = NeuronDebugRegistry.instance;
-    final shouldRegister = registry.isEnabled;
-    final legacyDevTools = SignalDevTools().isEnabled;
-
-    if (shouldRegister || legacyDevTools) {
-      final id = registry.registerNotifier(
-        controller: parent,
-        notifier: this,
-        debugLabel: _resolveDebugLabel(),
-        kind: _resolveKind(),
-      );
-
-      if (legacyDevTools) {
-        SignalDevTools().register(id, this);
-      }
-    }
-
     return this;
-  }
-
-  String _resolveKind() {
-    if (this is Computed) return 'computed';
-    if (this is AsyncSignal) return 'async';
-    return 'signal';
-  }
-
-  String? _resolveDebugLabel() {
-    if (this is Signal) {
-      return (this as Signal).debugLabel;
-    }
-    if (this is AsyncSignal) {
-      return (this as AsyncSignal).debugLabel;
-    }
-    return null;
   }
 }
 
@@ -1112,15 +1066,6 @@ class NeuronApp extends StatefulWidget {
   final RouteFactory? onUnknownRoute;
   final bool debugShowCheckedModeBanner;
 
-  /// Enable SignalDevTools for debugging (default: true in debug mode)
-  final bool enableDevTools;
-
-  /// Maximum events to store in DevTools (default: 500)
-  final int maxDevToolsEvents;
-
-  /// Auto-open the debug dashboard in a desktop browser (optional).
-  final bool autoOpenDevDashboard;
-
   /// Middlewares to run before/after navigation.
   final List<NeuronNavigationMiddleware> middlewares;
 
@@ -1136,9 +1081,6 @@ class NeuronApp extends StatefulWidget {
     this.onGenerateRoute,
     this.onUnknownRoute,
     this.debugShowCheckedModeBanner = false,
-    this.enableDevTools = kDebugMode,
-    this.maxDevToolsEvents = 500,
-    this.autoOpenDevDashboard = false,
     this.middlewares = const [],
   });
 
@@ -1147,78 +1089,9 @@ class NeuronApp extends StatefulWidget {
 }
 
 class _NeuronAppState extends State<NeuronApp> {
-  String? _lastLog;
-  DateTime? _lastLogAt;
-
   @override
   void initState() {
     super.initState();
-
-    _logDevTools(
-      'NeuronApp initState - enableDevTools: ${widget.enableDevTools}',
-    );
-
-    // Initialize DevTools tracking if enabled
-    if (widget.enableDevTools) {
-      _logDevTools(
-        'DevTools enabled (maxEvents: ${widget.maxDevToolsEvents}, '
-        'autoOpenDashboard: ${widget.autoOpenDevDashboard})',
-        level: 'start',
-      );
-      SignalDevTools().setEnabled(true);
-      SignalDevTools().setMaxEvents(widget.maxDevToolsEvents);
-      NeuronDebugRegistry.instance.enable();
-      NeuronDebugRegistry.instance.historyLimit = widget.maxDevToolsEvents;
-
-      // Start appropriate DevTools based on platform
-      _startDevTools();
-    } else {
-      _logDevTools('DevTools disabled (enableDevTools=false)');
-    }
-  }
-
-  Future<void> _startDevTools() async {
-    _logDevTools('Starting debug server (requested port: 9090)...');
-    // Unified debug server (HTTP + WebSocket)
-    try {
-      final port = await NeuronDebugServer.instance.start(
-        port: 9090,
-        openDashboard: widget.autoOpenDevDashboard,
-      );
-      _logDevTools(
-        'Debug server ready on ws://localhost:$port '
-        '(dashboard at http://localhost:$port/ui). '
-        'Waiting for DevTools to connect...',
-        level: 'ready',
-      );
-    } catch (e, stack) {
-      _logDevTools('Debug server failed to start: $e', level: 'error');
-      if (kDebugMode) {
-        debugPrint(stack.toString());
-      }
-    }
-  }
-
-  void _logDevTools(String message, {String level = 'info'}) {
-    final prefix = switch (level) {
-      'start' => '🚀',
-      'ready' => '✅',
-      'warn' => '⚠️',
-      'error' => '❌',
-      'connect' => '🔌',
-      _ => '🧠',
-    };
-    final line = '$prefix [NeuronDevTools] $message';
-    // Skip duplicates that arrive too quickly (e.g., hot reload bouncing).
-    if (_lastLog == line &&
-        _lastLogAt != null &&
-        DateTime.now().difference(_lastLogAt!) < const Duration(seconds: 1)) {
-      return;
-    }
-    _lastLog = line;
-    _lastLogAt = DateTime.now();
-    debugPrint(line); // visible in Flutter console
-    developer.log(message, name: 'NeuronDevTools', level: 0);
   }
 
   @override

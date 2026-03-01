@@ -15,7 +15,6 @@
 // │ neuron_middleware.dart     │ Signal interceptors and transformers         │
 // │ neuron_persistence.dart    │ SharedPreferences & Hive adapters            │
 // │ neuron_effects.dart        │ Reactions, when(), autorun()                 │
-// │ neuron_devtools.dart       │ Signal debugging and inspection              │
 // │ neuron_performance_monitor │ Memory, rebuild, and timing metrics          │
 // │ neuron_utilities.dart      │ Helper functions and common patterns         │
 // │ neuron_advanced.dart       │ UndoableSignal, FormSignal, ComputedAsync    │
@@ -46,25 +45,13 @@ import 'platform/process_info_stub.dart'
     if (dart.library.io) 'platform/process_info_io.dart';
 
 import 'neuron_core.dart';
-import 'debug/index.dart';
 
 part 'neuron_collections.dart';
 part 'neuron_rate_limiting.dart';
 part 'neuron_middleware.dart';
 part 'neuron_persistence.dart';
 part 'neuron_effects.dart';
-part 'neuron_devtools.dart';
 part 'neuron_performance_monitor.dart';
 part 'neuron_utilities.dart';
 part 'neuron_advanced.dart';
 part 'neuron_slots.dart';
-
-// Wire performance metrics provider for debug snapshots
-void _initNeuronDebug() {
-  NeuronDebugRegistry.instance.metricsProvider =
-      NeuronPerformanceMonitor.instance.toMetricsJson;
-}
-
-// Ensure provider is set at import time
-// ignore: unused_element
-final _debugInit = _initNeuronDebug();
