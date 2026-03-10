@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- Maintenance release: refined metadata, updated dependencies, and improved documentation.
+- Added usage example.
+
 ## 1.1.0
 
 ### New Generate Commands
