@@ -8,12 +8,14 @@ import 'package:recase/recase.dart';
 import '../generators/generators.dart';
 import '../utils/utils.dart';
 
-/// Command to remove Neuron components (screens, controllers, models)
+/// Command to remove Neuron components (screens, controllers, models, services, widgets)
 class RemoveCommand extends Command<int> {
   RemoveCommand({required Logger logger}) : _logger = logger {
     addSubcommand(RemoveScreenCommand(logger: _logger));
     addSubcommand(RemoveControllerCommand(logger: _logger));
     addSubcommand(RemoveModelCommand(logger: _logger));
+    addSubcommand(RemoveServiceCommand(logger: _logger));
+    addSubcommand(RemoveWidgetCommand(logger: _logger));
   }
 
   final Logger _logger;
@@ -26,7 +28,7 @@ class RemoveCommand extends Command<int> {
 
   @override
   String get description =>
-      'Remove Neuron components (screen, controller, model)';
+      'Remove Neuron components (screen, controller, model, service, widget)';
 }
 
 /// Remove a screen module (controller + view + route + DI entry)
@@ -96,6 +98,9 @@ class RemoveScreenCommand extends Command<int> {
       // Remove DI entry
       final diGen = DiGenerator(logger: _logger);
       await diGen.removeController('${rc.pascalCase}Controller');
+
+      // Also remove service if it was registered (for page-generated modules)
+      await diGen.removeController('${rc.pascalCase}Service');
 
       progress.complete('Module removed successfully!');
 
@@ -179,10 +184,8 @@ class RemoveControllerCommand extends Command<int> {
         _logger.progress('Removing controller "${rc.pascalCase}Controller"');
 
     try {
-      // Delete controller file
       await controllerFile.delete();
 
-      // Remove DI entry
       final diGen = DiGenerator(logger: _logger);
       await diGen.removeController('${rc.pascalCase}Controller');
 
@@ -277,6 +280,172 @@ class RemoveModelCommand extends Command<int> {
       return ExitCode.success.code;
     } catch (e) {
       progress.fail('Failed to remove model');
+      _logger.err('$e');
+      return ExitCode.software.code;
+    }
+  }
+}
+
+// ─── NEW REMOVE SUBCOMMANDS ─────────────────────────────────────────────────
+
+/// Remove a service
+class RemoveServiceCommand extends Command<int> {
+  RemoveServiceCommand({required Logger logger}) : _logger = logger;
+
+  final Logger _logger;
+
+  @override
+  String get name => 'service';
+
+  @override
+  List<String> get aliases => ['svc'];
+
+  @override
+  String get description => 'Remove a service and clean up DI';
+
+  @override
+  String get invocation => 'neuron remove service <name>';
+
+  @override
+  Future<int> run() async {
+    if (argResults?.rest.isEmpty ?? true) {
+      _logger.err('Please provide a service name.');
+      _logger.info('Usage: neuron remove service <name>');
+      return ExitCode.usage.code;
+    }
+
+    final serviceName = argResults!.rest.first;
+    final rc = ReCase(serviceName);
+
+    if (!await ProjectUtils.isNeuronProject()) {
+      _logger.err('Not in a Neuron/Flutter project directory.');
+      return ExitCode.usage.code;
+    }
+
+    final serviceFile = File(path.join(
+      Directory.current.path,
+      'lib',
+      'shared',
+      'services',
+      '${rc.snakeCase}_service.dart',
+    ));
+
+    if (!serviceFile.existsSync()) {
+      _logger.err('Service "${rc.snakeCase}_service.dart" not found.');
+      _logger.info(
+          'Expected at: lib/shared/services/${rc.snakeCase}_service.dart');
+      return ExitCode.usage.code;
+    }
+
+    final confirm = _logger.confirm(
+      'Remove service "${rc.pascalCase}Service"?',
+    );
+
+    if (!confirm) {
+      _logger.info('Cancelled.');
+      return ExitCode.success.code;
+    }
+
+    final progress =
+        _logger.progress('Removing service "${rc.pascalCase}Service"');
+
+    try {
+      await serviceFile.delete();
+
+      final diGen = DiGenerator(logger: _logger);
+      await diGen.removeController('${rc.pascalCase}Service');
+
+      progress.complete('Service removed successfully!');
+
+      _logger.info('');
+      _logger.success('✓ Removed service: ${rc.pascalCase}Service');
+      _logger.info('');
+      _logger.info('Cleaned up:');
+      _logger.info(
+          '  ✓ lib/shared/services/${rc.snakeCase}_service.dart (deleted)');
+      _logger.info('  ✓ Service removed from injector.dart');
+
+      return ExitCode.success.code;
+    } catch (e) {
+      progress.fail('Failed to remove service');
+      _logger.err('$e');
+      return ExitCode.software.code;
+    }
+  }
+}
+
+/// Remove a widget
+class RemoveWidgetCommand extends Command<int> {
+  RemoveWidgetCommand({required Logger logger}) : _logger = logger;
+
+  final Logger _logger;
+
+  @override
+  String get name => 'widget';
+
+  @override
+  List<String> get aliases => ['w'];
+
+  @override
+  String get description => 'Remove a reusable widget';
+
+  @override
+  String get invocation => 'neuron remove widget <name>';
+
+  @override
+  Future<int> run() async {
+    if (argResults?.rest.isEmpty ?? true) {
+      _logger.err('Please provide a widget name.');
+      _logger.info('Usage: neuron remove widget <name>');
+      return ExitCode.usage.code;
+    }
+
+    final widgetName = argResults!.rest.first;
+    final rc = ReCase(widgetName);
+
+    if (!await ProjectUtils.isNeuronProject()) {
+      _logger.err('Not in a Neuron/Flutter project directory.');
+      return ExitCode.usage.code;
+    }
+
+    final widgetFile = File(path.join(
+      Directory.current.path,
+      'lib',
+      'shared',
+      'widgets',
+      '${rc.snakeCase}.dart',
+    ));
+
+    if (!widgetFile.existsSync()) {
+      _logger.err('Widget "${rc.snakeCase}.dart" not found.');
+      _logger.info('Expected at: lib/shared/widgets/${rc.snakeCase}.dart');
+      return ExitCode.usage.code;
+    }
+
+    final confirm = _logger.confirm(
+      'Remove widget "${rc.pascalCase}"?',
+    );
+
+    if (!confirm) {
+      _logger.info('Cancelled.');
+      return ExitCode.success.code;
+    }
+
+    final progress = _logger.progress('Removing widget "${rc.pascalCase}"');
+
+    try {
+      await widgetFile.delete();
+
+      progress.complete('Widget removed successfully!');
+
+      _logger.info('');
+      _logger.success('✓ Removed widget: ${rc.pascalCase}');
+      _logger.info('');
+      _logger.info('Deleted: lib/shared/widgets/${rc.snakeCase}.dart');
+
+      return ExitCode.success.code;
+    } catch (e) {
+      progress.fail('Failed to remove widget');
       _logger.err('$e');
       return ExitCode.software.code;
     }

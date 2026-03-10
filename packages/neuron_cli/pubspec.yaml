@@ -1,7 +1,16 @@
 name: neuron_cli
-description: Command-line interface for Neuron. Generate projects, screens, controllers, and models with Signal/Slot architecture.
-version: 1.0.0
+description: >-
+  Powerful CLI for the Neuron framework. Generate projects, screens, controllers,
+  models, services, widgets, middleware, and full-stack pages. Includes project
+  health checks, smart renames, component listing, and dependency upgrades.
+version: 1.1.0
 homepage: https://github.com/pixeluvw/neuron
+repository: https://github.com/pixeluvw/neuron/tree/main/packages/neuron_cli
+topics:
+  - cli
+  - code-generation
+  - flutter
+  - neuron
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

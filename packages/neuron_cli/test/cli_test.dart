@@ -56,6 +56,124 @@ void main() {
       final exitCode = await runner.run(['remove', 'model', '--help']);
       expect(exitCode, equals(0));
     });
+
+    // ─── New command help tests ───────────────────────────────────
+
+    test('should show list help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['list', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show rename help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['rename', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show doctor help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['doctor', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show upgrade help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['upgrade', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    // ─── New generate subcommand help tests ──────────────────────
+
+    test('should show generate service help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['generate', 'service', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show generate widget help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['generate', 'widget', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show generate middleware help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['generate', 'middleware', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show generate page help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['generate', 'page', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    // ─── New remove subcommand help tests ────────────────────────
+
+    test('should show remove service help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['remove', 'service', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show remove widget help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['remove', 'widget', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    // ─── Alias tests ────────────────────────────────────────────
+
+    test('should support g alias for generate', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['g', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should support r alias for remove', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['r', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should support l alias for list', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['l', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should support mv alias for rename', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['mv', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    // ─── Rename subcommand help tests ───────────────────────────
+
+    test('should show rename screen help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['rename', 'screen', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show rename controller help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['rename', 'controller', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show rename model help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['rename', 'model', '--help']);
+      expect(exitCode, equals(0));
+    });
+
+    test('should show rename service help', () async {
+      final runner = NeuronCliRunner();
+      final exitCode = await runner.run(['rename', 'service', '--help']);
+      expect(exitCode, equals(0));
+    });
   });
 
   group('RouteTemplates', () {
@@ -155,6 +273,88 @@ void main() {
       final output = ControllerTemplates.controllerDart('auth');
       expect(output, contains('Neuron.use<AuthController>()'));
       expect(output, isNot(contains('Neuron.ensure')));
+    });
+  });
+
+  // ─── NEW TEMPLATE TESTS ─────────────────────────────────────────────────
+
+  group('ServiceTemplates', () {
+    test('generates base service with Neuron.use', () {
+      final output = ServiceTemplates.serviceDart('auth');
+      expect(output, contains('class AuthService extends NeuronController'));
+      expect(output, contains('Neuron.use<AuthService>()'));
+      expect(output, contains('Signal<bool>(false)'));
+      expect(output, contains('Signal<String?>'));
+    });
+
+    test('generates CRUD service with getAll/getById/create/update/delete', () {
+      final output = ServiceTemplates.crudServiceDart('user');
+      expect(output, contains('class UserService extends NeuronController'));
+      expect(output, contains('Future<List<Map<String, dynamic>>> getAll()'));
+      expect(output, contains('Future<Map<String, dynamic>?> getById(String id)'));
+      expect(output, contains('Future<Map<String, dynamic>> create(Map<String, dynamic> data)'));
+      expect(output, contains('Future<Map<String, dynamic>> update(String id'));
+      expect(output, contains('Future<void> delete(String id)'));
+    });
+
+    test('generates HTTP service with GET/POST/PUT/DELETE', () {
+      final output = ServiceTemplates.httpServiceDart('api');
+      expect(output, contains('class ApiService extends NeuronController'));
+      expect(output, contains('String get baseUrl'));
+      expect(output, contains('Future<Map<String, dynamic>> get(String path)'));
+      expect(output, contains('Future<Map<String, dynamic>> post('));
+      expect(output, contains('Future<Map<String, dynamic>> put('));
+      expect(output, contains('Future<Map<String, dynamic>> delete(String path)'));
+    });
+  });
+
+  group('WidgetTemplates', () {
+    test('generates basic widget', () {
+      final output = WidgetTemplates.widgetDart('avatar_card');
+      expect(output, contains('class AvatarCard extends StatelessWidget'));
+      expect(output, contains('const AvatarCard({'));
+      expect(output, contains('Widget? child'));
+    });
+
+    test('generates signal-aware widget with generic type', () {
+      final output = WidgetTemplates.signalWidgetDart('status_badge');
+      expect(output, contains('class StatusBadge<T> extends StatelessWidget'));
+      expect(output, contains('Signal<T> signal'));
+      expect(output, contains('Slot<T>('));
+    });
+  });
+
+  group('MiddlewareTemplates', () {
+    test('generates middleware extending SignalMiddleware', () {
+      final output = MiddlewareTemplates.middlewareDart('logging');
+      expect(output, contains('class LoggingMiddleware<T> extends SignalMiddleware<T>'));
+      expect(output, contains('T? onEmit(T currentValue, T newValue)'));
+    });
+  });
+
+  group('PageTemplates', () {
+    test('generates controller wired to service with AsyncSignal', () {
+      final output = PageTemplates.controllerDart('products');
+      expect(output, contains('class ProductsController extends NeuronController'));
+      expect(output, contains('ProductsService.init'));
+      expect(output, contains('AsyncSignal<List<Map<String, dynamic>>>'));
+      expect(output, contains('Future<void> loadData()'));
+    });
+
+    test('generates view with AsyncSlot loading/error/data pattern', () {
+      final output = PageTemplates.viewDart('products');
+      expect(output, contains('class ProductsView extends StatelessWidget'));
+      expect(output, contains('AsyncSlot<List<Map<String, dynamic>>>'));
+      expect(output, contains('loading:'));
+      expect(output, contains('error:'));
+      expect(output, contains('data:'));
+    });
+
+    test('generates page-local service with CRUD stubs', () {
+      final output = PageTemplates.serviceDart('products');
+      expect(output, contains('class ProductsService extends NeuronController'));
+      expect(output, contains('Future<List<Map<String, dynamic>>> getAll()'));
+      expect(output, contains('Future<void> delete(String id)'));
     });
   });
 

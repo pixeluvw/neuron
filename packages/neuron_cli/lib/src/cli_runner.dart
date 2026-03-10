@@ -13,12 +13,16 @@ class NeuronCliRunner {
   Future<int> run(List<String> arguments) async {
     final runner = CommandRunner<int>(
       'neuron',
-      'Neuron CLI - Generate projects, screens, controllers, and models',
+      'Neuron CLI - Generate projects, screens, controllers, models, services, and more',
     )
       ..addCommand(CreateCommand(logger: _logger))
       ..addCommand(GenerateCommand(logger: _logger))
       ..addCommand(InitCommand(logger: _logger))
       ..addCommand(RemoveCommand(logger: _logger))
+      ..addCommand(ListCommand(logger: _logger))
+      ..addCommand(RenameCommand(logger: _logger))
+      ..addCommand(DoctorCommand(logger: _logger))
+      ..addCommand(UpgradeCommand(logger: _logger))
       ..argParser.addFlag(
         'version',
         abbr: 'v',
@@ -30,7 +34,7 @@ class NeuronCliRunner {
       final results = runner.parse(arguments);
 
       if (results['version'] == true) {
-        _logger.info('neuron_cli version: 1.0.0');
+        _logger.info('neuron_cli version: 1.1.0');
         return ExitCode.success.code;
       }
 

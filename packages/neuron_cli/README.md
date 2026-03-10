@@ -1,255 +1,287 @@
-# Neuron CLI
+# Neuron CLI ⚡
 
-Command-line interface for the [Neuron](https://pub.dev/packages/neuron) framework. Generate projects, screens, controllers, and models with the Signal/Slot architecture — complete with automatic routing and dependency injection.
+A powerful command-line interface for the [Neuron](https://pub.dev/packages/neuron) reactive framework.
 
 ## Installation
-
-### Option 1: Compile Native Executable (Recommended)
-
-```bash
-cd packages/neuron_cli
-dart compile exe bin/neuron.dart -o neuron.exe  # Windows
-# dart compile exe bin/neuron.dart -o neuron    # macOS/Linux
-
-# Add to PATH or move to a directory in your PATH
-```
-
-### Option 2: From pub.dev (when published)
 
 ```bash
 dart pub global activate neuron_cli
 ```
 
-### Option 3: Development Mode
+## Command Quick Reference
 
-```bash
-cd packages/neuron_cli
-dart pub global activate --source path .
-```
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `neuron create <name>` | — | Create a new Neuron project |
+| `neuron init` | — | Add Neuron to an existing Flutter project |
+| `neuron generate screen <name>` | `g s` | Screen with controller, view, route & DI |
+| `neuron generate controller <name>` | `g c` | Standalone NeuronController |
+| `neuron generate model <name>` | `g m` | Data model with JSON serialization |
+| `neuron generate service <name>` | `g svc` | Service layer (with `--crud` / `--http`) |
+| `neuron generate widget <name>` | `g w` | Reusable widget (with `--signal`) |
+| `neuron generate middleware <name>` | `g mw` | Signal middleware |
+| `neuron generate page <name>` | `g p` | Full-stack page (controller + view + service) |
+| `neuron remove screen <name>` | `r s` | Remove screen & clean up routes/DI |
+| `neuron remove controller <name>` | `r c` | Remove controller & clean up DI |
+| `neuron remove model <name>` | `r m` | Remove model file |
+| `neuron remove service <name>` | `r svc` | Remove service & clean up DI |
+| `neuron remove widget <name>` | `r w` | Remove widget file |
+| `neuron list [type]` | `l` | List registered components |
+| `neuron rename <type> <old> <new>` | `mv` | Rename & update all references |
+| `neuron doctor` | — | Check project health |
+| `neuron upgrade` | — | Upgrade neuron to latest (with `--regen`) |
 
-## Quick Reference
+---
 
-| Action | Full Form | Short Form |
-|---|---|---|
-| Create project | `neuron create my_app` | — |
-| Init in existing project | `neuron init` | — |
-| Generate screen | `neuron generate screen settings` | `neuron g s settings` |
-| Generate controller | `neuron generate controller auth` | `neuron g c auth` |
-| Generate model | `neuron generate model user` | `neuron g m user` |
-| Remove screen | `neuron remove screen settings` | `neuron r s settings` |
-| Remove controller | `neuron remove controller auth` | `neuron r c auth` |
-| Remove model | `neuron remove model user` | `neuron r m user` |
-
-## Commands
-
-### Create a new project
+## Create a New Project
 
 ```bash
 neuron create my_app
 neuron create my_app --org com.mycompany
-neuron create my_app --empty  # Without example code
+neuron create my_app --empty  # minimal boilerplate
 ```
 
-Creates a new Flutter project with:
-- Latest **neuron** dependency from pub.dev (fetched automatically)
-- Modular project structure (`lib/modules/`, `lib/shared/`, `lib/routes/`, `lib/di/`)
-- `NeuronApp` with `NeuronRoute`-based routing
-- Central dependency injection via `setupDependencies()`
-- Example home module (unless `--empty`)
-
-### Initialize Neuron in an existing project
-
-```bash
-neuron init
-neuron init --empty
-```
-
-Converts an existing Flutter project into a Neuron project — adds the dependency, creates the directory structure, and generates initial routes/DI.
-
-### Generate a screen (module)
-
-```bash
-neuron generate screen settings    # Full form
-neuron g s settings                # Short form
-neuron g s settings --path /app/settings   # Custom route path
-neuron g s settings --no-route     # Skip route registration
-```
-
-Generates a self-contained module:
-- `lib/modules/settings/settings_controller.dart` — NeuronController with signals
-- `lib/modules/settings/settings_view.dart` — StatelessWidget with Signal/Slot binding
-- Auto-registers route in `lib/routes/app_routes.dart`
-- Auto-registers controller in `lib/di/injector.dart`
-
-### Generate a controller
-
-```bash
-neuron generate controller auth    # Full form
-neuron g c auth                    # Short form
-```
-
-Creates a standalone controller at `lib/shared/controllers/auth_controller.dart` and registers it in the DI injector.
-
-### Generate a model
-
-```bash
-neuron generate model user                                    # Full form
-neuron g m user                                               # Short form
-neuron g m user -f id:int -f name:String -f email:String      # With fields
-neuron g m user -f id:int -f nickname:String?                 # Nullable field
-```
-
-Creates a model at `lib/shared/models/user.dart` with:
-- Immutable fields
-- `copyWith()` method
-- JSON serialization (`fromJson`, `toJson`)
-- Equality operators
-- `toString()`
-
-### Remove components
-
-```bash
-neuron remove screen settings      # or: neuron r s settings
-neuron remove controller auth      # or: neuron r c auth
-neuron remove model user           # or: neuron r m user
-```
-
-Removes the component files **and** automatically cleans up:
-- Route entries from `app_routes.dart` (for screens)
-- DI entries from `injector.dart` (for screens and controllers)
-- JSON manifests (`.routes.json`, `.controllers.json`)
-
-## Project Structure
-
-After `neuron create my_app`:
-
+Creates a fully-configured Neuron project:
 ```
 my_app/
 ├── lib/
-│   ├── main.dart              # NeuronApp entry point
-│   ├── di/
-│   │   └── injector.dart      # Central DI — setupDependencies()
-│   ├── routes/
-│   │   └── app_routes.dart    # NeuronRoute list — appRoutes
-│   ├── modules/
-│   │   └── home/
-│   │       ├── home_controller.dart
-│   │       └── home_view.dart
-│   └── shared/
-│       ├── controllers/       # Standalone controllers
-│       ├── models/            # Data models
-│       ├── widgets/           # Reusable widgets
-│       ├── services/          # API, storage, etc.
-│       └── utils/             # Utilities
-├── .routes.json               # Route manifest (source of truth)
-├── .controllers.json          # DI manifest (source of truth)
+│   ├── main.dart
+│   ├── di/injector.dart
+│   ├── routes/app_routes.dart
+│   └── modules/home/
+│       ├── home_controller.dart
+│       └── home_view.dart
 └── pubspec.yaml
 ```
 
-## How It Works
+## Init in Existing Project
 
-### Automatic Routing
-
-Routes are managed via a `.routes.json` manifest. When you add or remove a screen, the CLI updates the manifest and regenerates `app_routes.dart`:
-
-```dart
-// lib/routes/app_routes.dart (auto-generated)
-import 'package:neuron/neuron.dart';
-import '../modules/home/home_view.dart';
-import '../modules/settings/settings_view.dart';
-
-final List<NeuronRoute> appRoutes = [
-  NeuronRoute(name: 'home', path: '/', view: () => const HomeView()),
-  NeuronRoute(name: 'settings', path: '/settings', view: () => const SettingsView()),
-];
+```bash
+cd my_existing_flutter_app
+neuron init
+neuron init --empty   # skip starter module
+neuron init --force   # re-initialize
 ```
 
-### Dependency Injection
+---
 
-Controllers are managed via a `.controllers.json` manifest. The CLI generates `injector.dart` with all registrations:
+## Generate Components
+
+### Screen
+
+```bash
+neuron g s login
+neuron g s settings --path /app/settings
+neuron g s profile --no-route
+```
+
+Creates `lib/modules/login/` with controller + view, registers route & DI.
+
+### Controller
+
+```bash
+neuron g c auth
+```
+
+Creates `lib/shared/controllers/auth_controller.dart` and registers in DI.
+
+### Model
+
+```bash
+neuron g m user -f id:int -f name:String -f email:String
+```
+
+Creates `lib/shared/models/user.dart` with copyWith, JSON conversion, equality.
+
+### Service
+
+```bash
+neuron g svc auth               # base service
+neuron g svc user --crud        # CRUD stubs (getAll, getById, create, update, delete)
+neuron g svc api --http         # HTTP client (GET, POST, PUT, DELETE)
+```
+
+Creates `lib/shared/services/<name>_service.dart` and registers in DI.
+
+### Widget
+
+```bash
+neuron g w avatar_card           # basic StatelessWidget
+neuron g w status_badge --signal # Signal-aware widget with Slot<T>
+```
+
+Creates `lib/shared/widgets/<name>.dart`.
+
+### Middleware
+
+```bash
+neuron g mw logging
+```
+
+Creates `lib/shared/middleware/logging_middleware.dart` extending `SignalMiddleware<T>`.
+
+### Page (Full-Stack)
+
+```bash
+neuron g p products
+neuron g p orders --path /admin/orders
+```
+
+Creates a **complete module** with:
+- **Controller** — pre-wired with AsyncSignal and the service
+- **View** — with AsyncSlot handling loading/error/data states
+- **Service** — CRUD stubs ready for your data source
+
+All registered in routes and DI automatically.
+
+---
+
+## Remove Components
+
+```bash
+neuron r s login          # remove screen module + routes + DI
+neuron r c auth           # remove controller + DI
+neuron r m user           # remove model file
+neuron r svc auth         # remove service + DI
+neuron r w avatar_card    # remove widget file
+```
+
+Prompts for confirmation before deleting.
+
+---
+
+## List Components
+
+```bash
+neuron l                  # show all components
+neuron l screens          # just screens
+neuron l services         # just services
+neuron l routes           # just routes
+neuron l controllers      # just controllers
+neuron l models           # just models
+```
+
+Output:
+```
+📱 Screens (3):
+   • home
+   • login
+   • settings
+
+🎮 Controllers (1):
+   • auth_controller
+
+⚙️  Services (2):
+   • shared/user_service
+   • modules/products/products_service
+
+📦 Models (1):
+   • user
+
+🔗 Routes (3):
+   • home → / (HomeView)
+   • login → /login (LoginView)
+   • settings → /settings (SettingsView)
+```
+
+---
+
+## Rename Components
+
+```bash
+neuron mv screen login auth       # rename module + files + references
+neuron mv controller auth session # rename controller + DI
+neuron mv model user account      # rename model + imports
+neuron mv service auth session    # rename service + DI
+```
+
+Automatically updates:
+- File & directory names
+- Class names (PascalCase)
+- Import paths across the project
+- Route entries in `app_routes.dart`
+- DI entries in `injector.dart`
+
+---
+
+## Doctor
+
+```bash
+neuron doctor
+```
+
+Output:
+```
+🏥 Neuron Doctor
+─────────────────────────────────────
+
+✓ pubspec.yaml found
+✓ Flutter project detected
+✓ Neuron dependency present
+✓ Neuron is up to date (1.5.0)
+
+📁 Project Structure:
+   ✓ lib/modules/ (3 items)
+   ✓ lib/shared/controllers/ (1 items)
+   ○ lib/shared/services/ (not created yet)
+   ✓ lib/routes/ (2 items)
+   ✓ lib/di/ (2 items)
+
+📋 Manifests:
+   ✓ .routes.json (3 routes)
+   ✓ .controllers.json (4 entries)
+
+🔍 Orphan Check:
+   ✓ No orphaned modules found
+
+📝 Generated Files:
+   ✓ lib/routes/app_routes.dart
+   ✓ lib/di/injector.dart
+   ✓ lib/main.dart
+
+─────────────────────────────────────
+✓ No issues found — project is healthy! 🎉
+```
+
+---
+
+## Upgrade
+
+```bash
+neuron upgrade              # update neuron version + pub get
+neuron upgrade --regen      # also regenerate routes & DI from manifests
+```
+
+---
+
+## Architecture Overview
+
+Neuron uses the **Signal/Slot** reactive pattern:
+
+- **Signal** — A reactive value that notifies listeners on change
+- **Slot** — A widget that rebuilds when its connected Signal changes
+- **NeuronController** — Lifecycle-aware controller holding Signals
+- **Neuron.use<T>()** — Service locator for dependency injection
+- **NeuronApp** — App wrapper with context-less navigation
 
 ```dart
-// lib/di/injector.dart (auto-generated)
-import 'package:neuron/neuron.dart';
-import '../modules/home/home_controller.dart';
-import '../modules/settings/settings_controller.dart';
+// Controller
+class HomeController extends NeuronController {
+  static HomeController get init => Neuron.use<HomeController>();
 
-void setupDependencies() {
-  Neuron.install<HomeController>(() => HomeController());
-  Neuron.install<SettingsController>(() => SettingsController());
+  late final counter = Signal<int>(0).bind(this);
+
+  void increment() => counter.emit(counter.value + 1);
 }
-```
 
-### Entry Point
-
-```dart
-// lib/main.dart
-import 'package:neuron/neuron.dart';
-import 'di/injector.dart';
-import 'routes/app_routes.dart';
-
-void main() {
-  setupDependencies();
-  runApp(NeuronApp(
-    routes: appRoutes,
-    initialRoute: '/',
-  ));
-}
-```
-
-### Navigation
-
-```dart
-// Context-less navigation (from anywhere)
-Neuron.toNamed('settings');
-Neuron.to(const SettingsView());
-
-// With arguments
-Neuron.toNamed('settings', arguments: {'id': 123});
-```
-
-## Architecture
-
-Neuron CLI generates code following the **Signal/Slot** pattern:
-
-- **Controllers** (`NeuronController`) — Hold business logic and reactive state as Signals
-- **Views** (`StatelessWidget`) — React to changes using Slot widgets
-- **DI** (`Neuron.install` / `Neuron.use`) — Central registration, type-safe access
-- **No StatefulWidget** — All reactivity is handled by Signal/Slot binding
-
-### Example Controller
-
-```dart
-class SettingsController extends NeuronController {
-  static SettingsController get init => Neuron.use<SettingsController>();
-
-  late final isDarkMode = Signal<bool>(false).bind(this);
-  late final language = Signal<String>('en').bind(this);
-
-  void toggleDarkMode() {
-    isDarkMode.emit(!isDarkMode.val);
-  }
-}
-```
-
-### Example View
-
-```dart
-class SettingsView extends StatelessWidget {
-  const SettingsView({super.key});
-
+// View
+class HomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final c = SettingsController.init;
-
-    return Scaffold(
-      body: Slot<bool>(
-        connect: c.isDarkMode,
-        to: (context, isDark) => Switch(
-          value: isDark,
-          onChanged: (_) => c.toggleDarkMode(),
-        ),
-      ),
+    final c = HomeController.init;
+    return Slot<int>(
+      connect: c.counter,
+      to: (ctx, count) => Text('Count: $count'),
     );
   }
 }
@@ -257,8 +289,4 @@ class SettingsView extends StatelessWidget {
 
 ## Dynamic Version Resolution
 
-The CLI automatically fetches the latest `neuron` version from pub.dev when creating or initializing projects. If the network is unavailable, it falls back to a known stable version.
-
-## License
-
-MIT License — see the main Neuron repository for details.
+The CLI automatically fetches the latest Neuron version from pub.dev when creating or initializing projects, ensuring you always start with the most recent release.

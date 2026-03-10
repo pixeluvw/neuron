@@ -93,6 +93,13 @@ class RouteGenerator {
     await _writeManifest(projectName, routes);
   }
 
+  /// Regenerate app_routes.dart from the manifest (used by upgrade --regen)
+  Future<void> regenerateFromManifest() async {
+    final routes = await _readManifest();
+    final projectName = await _getProjectName();
+    await _writeManifest(projectName, routes);
+  }
+
   /// Get project name from pubspec.yaml
   Future<String> _getProjectName() async {
     final pubspec =
