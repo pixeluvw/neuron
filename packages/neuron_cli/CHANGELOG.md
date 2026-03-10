@@ -1,10 +1,5 @@
 # Changelog
 
-## 1.1.1
-
-- Pub.dev score optimizations (shorter description, fixed repo URL, updated dependencies, added example).
-- Improved documentation and code quality scores.
-
 ## 1.1.0
 
 ### New Generate Commands
