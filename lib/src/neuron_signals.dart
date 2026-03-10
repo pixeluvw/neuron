@@ -251,7 +251,7 @@ final class AsyncError<T> extends AsyncState<T> {
 /// - [Computed] - For derived values that auto-update
 /// - [Slot] - Widget for binding signals to UI
 class Signal<T> extends NeuronAtom<T> {
-  /// Debug label for identification in DevTools.
+  /// Debug label for identification in debugging and diagnostics.
   final String? debugLabel;
 
   StreamController<T>? _streamController;
@@ -408,7 +408,7 @@ class Signal<T> extends NeuronAtom<T> {
 /// - [AsyncSlot] - Widget for binding async signals to UI
 /// - [execute] - Helper method to manage async operations
 class AsyncSignal<T> extends NeuronAtom<AsyncState<T>> {
-  /// Debug label for identification in DevTools.
+  /// Debug label for identification in debugging and diagnostics.
   final String? debugLabel;
 
   /// Stores the last operation for refresh capability.
@@ -674,7 +674,7 @@ class _DependencyTracker {
 class Computed<T> extends NeuronAtom<T> {
   final T Function() _compute;
 
-  /// Debug label for identification in DevTools.
+  /// Debug label for identification in debugging and diagnostics.
   final String? debugLabel;
 
   // User-provided lifecycle callbacks
@@ -693,10 +693,12 @@ class Computed<T> extends NeuronAtom<T> {
 
   /// Creates a computed signal with automatic dependency tracking.
   ///
-  /// The [compute] function is called lazily when the value is accessed
-  /// and there are active listeners. Dependencies are detected automatically.
+  /// The [compute] function runs once during construction to establish
+  /// the initial value. Subsequent recomputations happen **lazily** —
+  /// only when the value is accessed after a dependency change.
   ///
-  /// Optionally provide [initialValue] to defer the first computation.
+  /// Optionally provide [initialValue] to skip the initial computation
+  /// entirely (useful when the value is known ahead of time).
   Computed(
     this._compute, {
     T? initialValue,
@@ -707,18 +709,14 @@ class Computed<T> extends NeuronAtom<T> {
     VoidCallback? onCancel,
   })  : _userOnListen = onListen,
         _userOnCancel = onCancel,
-        // Use a temporary placeholder that will be immediately overwritten
         super(initialValue ?? _computeInitial(_compute)) {
-    _cachedValue = value;
+    _cachedValue = super.value; // Cache without triggering overridden getter
     _isStale = false;
   }
 
-  /// Helper to compute initial value during construction.
-  static T _computeInitial<T>(T Function() compute) {
-    // Note: Cannot track dependencies here since Computed instance isn't created yet
-    // Dependencies will be tracked on first recompute when listeners are added
-    return compute();
-  }
+  /// Compute initial value during construction (no dependency tracking).
+  /// Dependencies are tracked on first recompute when listeners are added.
+  static T _computeInitial<T>(T Function() compute) => compute();
 
   /// Called when the first listener is added - sets up dependency subscriptions.
   @override
@@ -875,20 +873,11 @@ class Computed<T> extends NeuronAtom<T> {
   void _markStale() {
     if (!_isStale) {
       _isStale = true;
-      // Recompute immediately and notify if value changed
-      final oldValue = _cachedValue;
-      final oldError = _error;
-      _recompute();
-
-      // Notify if value or error state changed
-      final valueChanged = equals != null
-          ? !equals!(_cachedValue as T, oldValue as T)
-          : _cachedValue != oldValue;
-      final errorChanged = (_error != null) != (oldError != null);
-
-      if (valueChanged || errorChanged) {
-        notifyListeners();
-      }
+      // Notify listeners that the value may have changed.
+      // The actual recomputation is deferred to the next .value access,
+      // avoiding wasted work if dependencies change multiple times
+      // before the value is read.
+      notifyListeners();
     }
   }
 

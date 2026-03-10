@@ -2085,148 +2085,259 @@ class DeviceCard extends StatelessWidget {
 
 ## 🎭 More Real-World Examples
 
-### E-Commerce Cart
+### Form Handling & Validation
+
+Neuron excels at reactive form validation without `setState` or `FormBuilder` boilerplate.
 
 ```dart
-class CartController extends NeuronController {
-  late final items = signal<List<CartItem>>([]);
-  late final promoCode = signal<String?>(null);
-  
-  late final subtotal = computed(() => 
-    items.val.fold(0.0, (sum, item) => sum + item.price * item.quantity)
-  );
-  
-  late final discount = computed(() {
-    if (promoCode.val == 'SAVE20') return 0.20;
-    if (promoCode.val == 'SAVE10') return 0.10;
-    return 0.0;
-  });
-  
-  late final total = computed(() => subtotal.val * (1 - discount.val));
-  
-  late final itemCount = computed(() => 
-    items.val.fold(0, (sum, item) => sum + item.quantity)
-  );
-  
-  void addItem(Product product) {
-    final existing = items.val.firstWhereOrNull((i) => i.productId == product.id);
-    if (existing != null) {
-      existing.quantity++;
-      items.emit([...items.val]); // Trigger update
-    } else {
-      items.emit([...items.val, CartItem(product)]);
-    }
-  }
-  
-  void removeItem(String productId) {
-    items.emit(items.val.where((i) => i.productId != productId).toList());
-  }
-  
-  void applyPromo(String code) => promoCode.emit(code);
-  
-  static CartController get init => Neuron.ensure(() => CartController());
-}
-```
-
-### Authentication Flow
-
-```dart
-class AuthController extends NeuronController {
-  late final user = asyncSignal<User?>();
-  late final isAuthenticated = computed(() => user.hasData && user.data != null);
-  
-  Future<void> login(String email, String password) async {
-    await user.execute(() => authService.login(email, password));
-  }
-  
-  Future<void> logout() async {
-    await authService.logout();
-    user.emitData(null);
-  }
-  
-  Future<void> checkSession() async {
-    await user.execute(() => authService.getCurrentUser());
-  }
-  
-  static AuthController get init => Neuron.ensure(() => AuthController());
-}
-
-// In your app
-class App extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return NeuronApp(
-      home: Slot<bool>(
-        connect: AuthController.init.isAuthenticated,
-        to: (_, isAuth) => isAuth ? HomePage() : LoginPage(),
-      ),
-    );
-  }
-}
-```
-
-### Form Validation
-
-```dart
-class LoginFormController extends NeuronController {
+class SignupController extends NeuronController {
+  // 1. Form state
+  late final username = signal('');
   late final email = signal('');
   late final password = signal('');
   late final isSubmitting = signal(false);
   
+  // 2. Individual validation rules (computed lazily)
+  late final usernameError = computed(() {
+    final v = username.val;
+    if (v.isEmpty) return 'Username required';
+    if (v.length < 3) return 'Must be 3+ characters';
+    return null; // Valid
+  });
+  
   late final emailError = computed(() {
-    if (email.val.isEmpty) return null;
-    if (!email.val.contains('@')) return 'Invalid email';
+    final v = email.val;
+    if (v.isEmpty) return 'Email required';
+    if (!v.contains('@')) return 'Invalid email format';
     return null;
   });
   
   late final passwordError = computed(() {
-    if (password.val.isEmpty) return null;
-    if (password.val.length < 8) return 'Must be 8+ characters';
+    final v = password.val;
+    if (v.isEmpty) return 'Password required';
+    if (v.length < 8) return 'Must be 8+ characters';
     return null;
   });
   
+  // 3. Overall form validity
   late final isValid = computed(() => 
-    email.val.isNotEmpty && 
-    password.val.isNotEmpty && 
+    usernameError.val == null && 
     emailError.val == null && 
     passwordError.val == null
   );
   
   Future<void> submit() async {
     if (!isValid.val) return;
+    
     isSubmitting.emit(true);
     try {
-      await AuthController.init.login(email.val, password.val);
+      await api.register(username.val, email.val, password.val);
+      Neuron.toNamed('/home');
+    } catch (e) {
+      Neuron.showSnackBar('Registration failed: $e');
     } finally {
       isSubmitting.emit(false);
     }
   }
-  
-  static LoginFormController get init => Neuron.ensure(() => LoginFormController());
+}
+
+// UI Implementation
+class SignupPage extends StatelessWidget {
+  final c = Neuron.ensure(() => SignupController());
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          // Username Field
+          Slot<String?>(
+            connect: c.usernameError,
+            to: (_, error) => TextField(
+              onChanged: c.username.emit,
+              decoration: InputDecoration(
+                labelText: 'Username',
+                errorText: error,
+              ),
+            ),
+          ),
+          
+          // Submit Button (only enabled when valid)
+          MultiSlot.t2(
+            c.isValid,
+            c.isSubmitting,
+            to: (_, isValid, isSubmitting) => ElevatedButton(
+              onPressed: (isValid && !isSubmitting) ? c.submit : null,
+              child: isSubmitting 
+                  ? CircularProgressIndicator() 
+                  : Text('Sign Up'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 ```
 
-### Search with Debounce
+### Authentication Flow with Route Guards
+
+Combine `AsyncSignal` for state, `AuthGuard` for protection, and `NeuronNavigator` for routing.
 
 ```dart
-class SearchController extends NeuronController {
-  late final query = signal('');
-  late final results = asyncSignal<List<Product>>();
-  
-  // Debounced search
-  late final _debouncedQuery = DebouncedSignal(query, Duration(milliseconds: 300));
+// 1. Central Auth Controller
+class AuthController extends NeuronController {
+  late final currentUser = asyncSignal<User?>();
+  late final isAuthenticated = computed(() => 
+    currentUser.hasData && currentUser.data != null
+  );
   
   @override
   void onInit() {
-    // Search when debounced query changes
-    effect(() {
-      if (_debouncedQuery.val.length >= 2) {
-        results.execute(() => api.search(_debouncedQuery.val));
-      }
-    }, [_debouncedQuery]);
+    // Check session on startup
+    currentUser.execute(() => api.getCurrentSession());
   }
   
-  static SearchController get init => Neuron.ensure(() => SearchController());
+  Future<void> login(String email, String password) async {
+    await currentUser.execute(() => api.login(email, password));
+  }
+  
+  Future<void> logout() async {
+    await api.logout();
+    currentUser.emitData(null);
+    Neuron.offAllNamed('/login'); // Clear stack and go to login
+  }
+  
+  static AuthController get init => Neuron.ensure(() => AuthController());
+}
+
+// 2. Global Route Configuration
+void main() {
+  final authGuard = AuthGuard(
+    isAuthenticated: () => AuthController.init.isAuthenticated.val,
+    redirectRoute: '/login', // Auto-redirect to login if unauthenticated
+  );
+
+  runApp(NeuronApp(
+    initialRoute: '/',
+    routes: [
+      NeuronRoute(
+        path: '/login',
+        name: 'login',
+        builder: (_, __) => LoginPage(),
+      ),
+      NeuronRoute(
+        path: '/dashboard',
+        name: 'dashboard',
+        guards: [authGuard], // Protected!
+        builder: (_, __) => DashboardPage(),
+      ),
+      // Role-based protection
+      NeuronRoute(
+        path: '/admin',
+        name: 'admin',
+        guards: [
+          authGuard,
+          RoleGuard(
+            requiredRoles: ['admin'],
+            getUserRoles: () => AuthController.init.currentUser.data?.roles ?? [],
+            redirectRoute: '/unauthorized',
+          )
+        ],
+        builder: (_, __) => AdminPage(),
+      ),
+    ],
+  ));
+}
+```
+
+### Pagination & Infinite Scroll
+
+Handling paginated APIs is trivial with Neuron's `AsyncSignal` and collections.
+
+```dart
+class FeedController extends NeuronController {
+  // Holds all loaded posts
+  late final posts = signal<List<Post>>([]);
+  
+  // Tracks loading state for the *next* page
+  late final nextFetch = asyncSignal<List<Post>>();
+  
+  int _currentPage = 1;
+  bool _hasMore = true;
+  
+  @override
+  void onInit() {
+    loadNextPage(); // Initial load
+  }
+  
+  Future<void> loadNextPage() async {
+    if (!_hasMore || nextFetch.isLoading) return;
+    
+    await nextFetch.execute(() async {
+      final newPosts = await api.getPosts(page: _currentPage);
+      
+      if (newPosts.isEmpty) {
+        _hasMore = false;
+      } else {
+        // Append new posts to our master list
+        posts.emit([...posts.val, ...newPosts]);
+        _currentPage++;
+      }
+      return newPosts;
+    });
+  }
+  
+  // Reset strategy (e.g., for pull-to-refresh)
+  Future<void> refresh() async {
+    _currentPage = 1;
+    _hasMore = true;
+    posts.emit([]);
+    await loadNextPage();
+  }
+}
+
+// UI Implementation
+class FeedPage extends StatelessWidget {
+  final c = Neuron.ensure(() => FeedController());
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: c.refresh,
+        child: Slot<List<Post>>(
+          connect: c.posts,
+          to: (_, items) {
+            // Show initial loading
+            if (items.isEmpty && c.nextFetch.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            
+            return ListView.builder(
+              itemCount: items.length + 1, // +1 for loading indicator
+              itemBuilder: (context, index) {
+                // If we reached the bottom, trigger next page
+                if (index == items.length) {
+                  c.loadNextPage();
+                  return AsyncSlot<List<Post>>(
+                    connect: c.nextFetch,
+                    onLoading: (_) => Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    onData: (_, __) => SizedBox.shrink(),
+                    onError: (_, err) => Text('Failed to load: $err'),
+                  );
+                }
+                return PostCard(items[index]);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 ```
 

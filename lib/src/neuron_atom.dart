@@ -142,36 +142,98 @@ void _defaultErrorHandler(
 }
 
 /// ═══════════════════════════════════════════════════════════════════════════════
+/// BATCH SCOPE
+/// ═══════════════════════════════════════════════════════════════════════════════
+///
+/// Enables deferred notification: during a batch, atoms collect into a pending
+/// set instead of immediately notifying listeners.  When the batch ends, each
+/// atom is notified exactly once regardless of how many times it was updated.
+class NeuronBatch {
+  static bool _isBatching = false;
+  static final Set<NeuronAtom<dynamic>> _pending = {};
+
+  /// Whether a batch is currently in progress.
+  static bool get isBatching => _isBatching;
+
+  /// Runs [updates] inside a batch scope.
+  ///
+  /// All signal updates that occur during [updates] will defer their
+  /// listener notifications until the batch completes, then each affected
+  /// atom is notified exactly once.
+  ///
+  /// ```dart
+  /// NeuronBatch.run(() {
+  ///   name.emit('Alice');
+  ///   age.emit(30);
+  ///   email.emit('alice@example.com');
+  /// });
+  /// // All 3 listeners fire here, once each
+  /// ```
+  static void run(void Function() updates) {
+    if (_isBatching) {
+      // Already inside a batch — just run updates, outer batch handles flush
+      updates();
+      return;
+    }
+
+    _isBatching = true;
+    try {
+      updates();
+    } finally {
+      _isBatching = false;
+      _flush();
+    }
+  }
+
+  /// Flush all pending notifications.
+  static void _flush() {
+    // Copy to avoid issues if notifyListeners triggers further changes
+    final atoms = _pending.toList();
+    _pending.clear();
+    for (final atom in atoms) {
+      atom.notifyListeners();
+    }
+  }
+
+  /// Called by NeuronAtom.notifyListeners when batching is active.
+  @pragma('vm:prefer-inline')
+  static void defer(NeuronAtom<dynamic> atom) {
+    _pending.add(atom);
+  }
+}
+
+/// ═══════════════════════════════════════════════════════════════════════════════
 /// ATOM POOLING / ARENA ALLOCATION
 /// ═══════════════════════════════════════════════════════════════════════════════
 ///
 /// An object pool for recycling standard [NeuronAtom] instances to avoid GC thrashing
 /// and constructor allocation penalties when rapid instantiations occur (e.g., inside Lists).
 class NeuronAtomPool {
-  static final List<NeuronAtom<dynamic>> _freeList = [];
-  static const int _maxPoolSize = 1000;
+  static final Map<Type, List<NeuronAtom<dynamic>>> _pool = {};
+  static const int _maxPoolSizePerType = 128;
 
   /// Retrieves an atom from the pool, or creates a new one if the pool is empty.
   static NeuronAtom<T> obtain<T>(T initialValue) {
-    for (int i = 0; i < _freeList.length; i++) {
-      if (_freeList[i] is NeuronAtom<T>) {
-        final atom = _freeList.removeAt(i) as NeuronAtom<T>;
-        // Reset the pooled atom
-        atom._value = initialValue;
-        atom._initialValue = initialValue;
-        atom._previousValue = null;
-        atom._state = 0; // Clear bitmask flags
-        atom._listeners.clear();
-        return atom;
-      }
+    final bucket = _pool[T];
+    if (bucket != null && bucket.isNotEmpty) {
+      final atom = bucket.removeLast() as NeuronAtom<T>;
+      // Reset the pooled atom
+      atom._value = initialValue;
+      atom._initialValue = initialValue;
+      atom._previousValue = null;
+      atom._state = 0; // Clear bitmask flags
+      atom._listeners.clear();
+      return atom;
     }
     return NeuronAtom<T>(initialValue);
   }
 
   /// Returns an atom to the pool.
   static void release(NeuronAtom<dynamic> atom) {
-    if (_freeList.length < _maxPoolSize) {
-      _freeList.add(atom);
+    final type = atom._value.runtimeType;
+    final bucket = _pool.putIfAbsent(type, () => []);
+    if (bucket.length < _maxPoolSizePerType) {
+      bucket.add(atom);
     }
   }
 }
@@ -440,6 +502,12 @@ class NeuronAtom<T> implements Disposable {
         'Cannot notify listeners on a disposed NeuronAtom');
     if (_hasFlag(_flagDisposed)) return;
     if (_listeners.isEmpty) return;
+
+    // If inside a batch, defer notification until the batch completes
+    if (NeuronBatch.isBatching) {
+      NeuronBatch.defer(this);
+      return;
+    }
 
     // Track if listeners are modified during notification
     bool listenersModified = false;
