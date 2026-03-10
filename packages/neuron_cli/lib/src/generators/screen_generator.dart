@@ -5,6 +5,9 @@ import 'package:path/path.dart' as path;
 import 'package:recase/recase.dart';
 
 import '../templates/templates.dart';
+import '../utils/project_utils.dart';
+import 'di_generator.dart';
+import 'route_generator.dart';
 
 /// Generator for creating a self-contained screen module (controller + view)
 class ScreenGenerator {
@@ -40,12 +43,30 @@ class ScreenGenerator {
     await File(path.join(moduleDir, '${rc.snakeCase}_view.dart'))
         .writeAsString(ScreenTemplates.viewDart(screenName));
 
+    // Register route in central route registry
+    if (registerRoute) {
+      final routeGen = RouteGenerator(logger: logger);
+      await routeGen.addRoute(
+        screenName: screenName,
+        customRoutePath: customRoutePath,
+      );
+    }
+
+    // Register controller in DI
+    final diGen = DiGenerator(logger: logger);
+    await diGen.addController(
+      name: screenName,
+      className: '${rc.pascalCase}Controller',
+      importPath: '../modules/${rc.snakeCase}/${rc.snakeCase}_controller.dart',
+      isShared: false,
+    );
+
     // Log navigation info
     if (registerRoute) {
       logger.info('');
-      logger.info('Navigation (context-less):');
+      logger.info('Navigation:');
+      logger.info("  Neuron.toNamed('${rc.camelCase}');");
       logger.info('  Neuron.to(const ${rc.pascalCase}View());');
-      logger.info('  Neuron.off(const ${rc.pascalCase}View());');
     }
   }
 
@@ -69,18 +90,13 @@ class ScreenGenerator {
     logger.info('Adding neuron dependency to pubspec.yaml...');
 
     // Find the dependencies section and add neuron after cupertino_icons or after flutter sdk
-    // Use regex to handle various formatting styles
     final dependenciesRegex = RegExp(
         r'(dependencies:\s*\n(?:.*\n)*?)(cupertino_icons:[^\n]*\n|  flutter:\s*\n\s*sdk:\s*flutter\s*\n)');
     final match = dependenciesRegex.firstMatch(content);
+    final neuronVersion = await ProjectUtils.getLatestNeuronVersion();
 
     if (match != null) {
-      const neuronDep = '''  neuron:
-    git:
-      url: https://github.com/pixeluvw/Neuron-Framework.git
-      path: packages/neuron
-''';
-      // Insert after the matched section
+      final neuronDep = '  neuron: ^$neuronVersion\n';
       final insertPoint = match.end;
       content = content.substring(0, insertPoint) +
           neuronDep +
@@ -92,11 +108,7 @@ class ScreenGenerator {
     } else {
       logger.warn(
           'Could not automatically add neuron dependency. Please add it manually:');
-      logger.info('''
-  neuron:
-    git:
-      url: https://github.com/pixeluvw/Neuron-Framework.git
-      path: packages/neuron''');
+      logger.info('  neuron: ^$neuronVersion');
     }
   }
 }

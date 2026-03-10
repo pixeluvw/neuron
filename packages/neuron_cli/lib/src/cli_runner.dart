@@ -17,6 +17,8 @@ class NeuronCliRunner {
     )
       ..addCommand(CreateCommand(logger: _logger))
       ..addCommand(GenerateCommand(logger: _logger))
+      ..addCommand(InitCommand(logger: _logger))
+      ..addCommand(RemoveCommand(logger: _logger))
       ..argParser.addFlag(
         'version',
         abbr: 'v',

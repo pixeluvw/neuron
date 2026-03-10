@@ -1,131 +1,107 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as path;
 import 'package:recase/recase.dart';
 
-/// Generator for auto-registering routes
-class RouteGenerator {
-  RouteGenerator({
-    required this.screenName,
-    this.customRoutePath,
-    required this.logger,
-  });
+import '../templates/templates.dart';
 
-  final String screenName;
-  final String? customRoutePath;
+/// Generator for managing the central route registry.
+///
+/// Uses a JSON manifest (`lib/routes/.routes.json`) as source of truth.
+/// Always regenerates `lib/routes/app_routes.dart` from the manifest.
+class RouteGenerator {
+  RouteGenerator({required this.logger});
+
   final Logger logger;
 
-  String get routePath => customRoutePath ?? '/${ReCase(screenName).paramCase}';
+  String get _routesDir => path.join(Directory.current.path, 'lib', 'routes');
+  String get _manifestPath => path.join(_routesDir, '.routes.json');
+  String get _appRoutesPath => path.join(_routesDir, 'app_routes.dart');
 
-  Future<void> registerRoute() async {
+  /// Read the current route manifest
+  Future<List<RouteEntry>> _readManifest() async {
+    final file = File(_manifestPath);
+    if (!await file.exists()) return [];
+
+    try {
+      final content = await file.readAsString();
+      final list = jsonDecode(content) as List;
+      return list
+          .map((e) => RouteEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Write the manifest and regenerate app_routes.dart
+  Future<void> _writeManifest(
+      String projectName, List<RouteEntry> routes) async {
+    await Directory(_routesDir).create(recursive: true);
+
+    // Write JSON manifest
+    final json = const JsonEncoder.withIndent('  ')
+        .convert(routes.map((r) => r.toJson()).toList());
+    await File(_manifestPath).writeAsString(json);
+
+    // Regenerate app_routes.dart
+    await File(_appRoutesPath)
+        .writeAsString(RouteTemplates.appRoutesDart(projectName, routes));
+  }
+
+  /// Add a route to the manifest and regenerate
+  Future<void> addRoute({
+    required String screenName,
+    String? customRoutePath,
+  }) async {
     final rc = ReCase(screenName);
-    final routesFile = File(
-        path.join(Directory.current.path, 'lib', 'routes', 'app_routes.dart'));
-    final routerFile = File(path.join(
-        Directory.current.path, 'lib', 'routes', 'neuron_router.dart'));
+    final routes = await _readManifest();
+    final routeName = rc.camelCase;
 
-    // Update app_routes.dart
-    if (await routesFile.exists()) {
-      await _updateAppRoutes(routesFile, rc);
-    } else {
-      logger.warn('app_routes.dart not found. Skipping route registration.');
-    }
+    // Skip if already registered
+    if (routes.any((r) => r.name == routeName)) return;
 
-    // Update neuron_router.dart
-    if (await routerFile.exists()) {
-      await _updateNeuronRouter(routerFile, rc);
-    } else {
-      logger.warn('neuron_router.dart not found. Skipping router helper.');
+    routes.add(RouteEntry(
+      name: routeName,
+      path: customRoutePath ?? '/${rc.paramCase}',
+      module: rc.snakeCase,
+      view: '${rc.pascalCase}View',
+    ));
+
+    final projectName = await _getProjectName();
+    await _writeManifest(projectName, routes);
+  }
+
+  /// Remove a route from the manifest and regenerate
+  Future<void> removeRoute(String screenName) async {
+    final rc = ReCase(screenName);
+    final routes = await _readManifest();
+    final before = routes.length;
+    routes.removeWhere((r) => r.module == rc.snakeCase);
+
+    if (routes.length < before) {
+      final projectName = await _getProjectName();
+      await _writeManifest(projectName, routes);
     }
   }
 
-  Future<void> _updateAppRoutes(File file, ReCase rc) async {
-    var content = await file.readAsString();
-
-    // Add import
-    final snakeCase = rc.snakeCase;
-    final importStatement =
-        "import '../modules/$snakeCase/${snakeCase}_view.dart';";
-    if (!content.contains(importStatement)) {
-      // Find the last import line and add after it
-      final importPattern = RegExp(r'''import\s+['"].*['"]\s*;''');
-      final matches = importPattern.allMatches(content).toList();
-      if (matches.isNotEmpty) {
-        final lastImport = matches.last;
-        content =
-            '${content.substring(0, lastImport.end)}\n$importStatement${content.substring(lastImport.end)}';
-      } else {
-        // No imports found, add at the beginning
-        content = '$importStatement\n\n$content';
-      }
-    }
-
-    // Add route constant
-    final camelCase = rc.camelCase;
-    final pascalCase = rc.pascalCase;
-    final routeConstant = "  static const $camelCase = '$routePath';";
-    final constCheck = 'static const $camelCase =';
-    if (!content.contains(constCheck)) {
-      final routesClassPattern =
-          RegExp(r'class\s+AppRoutes\s*\{([^}]*)\}', dotAll: true);
-      final match = routesClassPattern.firstMatch(content);
-      if (match != null) {
-        final classContent = match.group(1)!;
-        final newClassContent = '$classContent\n$routeConstant\n';
-        content = content.replaceFirst(
-          'class AppRoutes {$classContent}',
-          'class AppRoutes {$newClassContent}',
-        );
-      }
-    }
-
-    // Add route case in generateRoute
-    final routeCase = '''
-      case AppRoutes.$camelCase:
-        return MaterialPageRoute(
-          builder: (_) => const ${pascalCase}View(),
-          settings: settings,
-        );''';
-
-    final caseCheck = 'case AppRoutes.$camelCase:';
-    if (!content.contains(caseCheck)) {
-      // Find the switch statement and add before default case
-      final defaultPattern = RegExp(r'(\s*default\s*:)');
-      final match = defaultPattern.firstMatch(content);
-      if (match != null) {
-        content =
-            '${content.substring(0, match.start)}\n$routeCase\n${content.substring(match.start)}';
-      }
-    }
-
-    await file.writeAsString(content);
+  /// Generate the initial routes from a list of entries (used by create/init)
+  Future<void> generateInitial(
+      String projectName, List<RouteEntry> routes) async {
+    await _writeManifest(projectName, routes);
   }
 
-  Future<void> _updateNeuronRouter(File file, ReCase rc) async {
-    var content = await file.readAsString();
-
-    final pascalCase = rc.pascalCase;
-    final camelCase = rc.camelCase;
-
-    // Add navigation helper method
-    final helperMethod = '''
-  /// Navigate to $pascalCase screen
-  static Future<T?> to$pascalCase<T>(BuildContext context, {Object? arguments}) {
-    return Navigator.pushNamed<T>(context, AppRoutes.$camelCase, arguments: arguments);
-  }
-''';
-
-    final methodCheck = 'static Future<T?> to$pascalCase<T>';
-    if (!content.contains(methodCheck)) {
-      // Find the class closing brace and add before it
-      final classPattern = RegExp(r'(class\s+NeuronRouter\s*\{[^}]*)(})');
-      final match = classPattern.firstMatch(content);
-      if (match != null) {
-        content = '${match.group(1)}\n$helperMethod${match.group(2)}';
-      }
+  /// Get project name from pubspec.yaml
+  Future<String> _getProjectName() async {
+    final pubspec =
+        File(path.join(Directory.current.path, 'pubspec.yaml'));
+    if (await pubspec.exists()) {
+      final content = await pubspec.readAsString();
+      final match = RegExp(r'^name:\s*(\S+)', multiLine: true).firstMatch(content);
+      if (match != null) return match.group(1)!;
     }
-
-    await file.writeAsString(content);
+    return 'app';
   }
 }

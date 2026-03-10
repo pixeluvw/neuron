@@ -6,9 +6,12 @@ class ProjectTemplates {
 import 'package:flutter/material.dart';
 import 'package:neuron/neuron.dart';
 
-import 'modules/home/home_view.dart';
+import 'di/injector.dart';
+import 'routes/app_routes.dart';
 
 void main() {
+  setupDependencies();
+
   runApp(
     NeuronApp(
       title: '$projectName',
@@ -16,9 +19,8 @@ void main() {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const HomeView(),
-      // Enable DevTools in debug mode
-      enableDevTools: true,
+      routes: appRoutes,
+      initialRoute: '/',
     ),
   );
 }
@@ -37,9 +39,8 @@ import 'package:neuron/neuron.dart';
 /// final c = HomeController.init;
 /// ```
 class HomeController extends NeuronController {
-  /// Static getter for the controller (lazy singleton)
-  static HomeController get init =>
-      Neuron.ensure<HomeController>(() => HomeController());
+  /// Static getter for the controller
+  static HomeController get init => Neuron.use<HomeController>();
 
   /// Counter signal - auto-disposed with controller
   late final count = Signal<int>(0).bind(this);
