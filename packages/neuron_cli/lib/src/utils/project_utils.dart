@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as path;
@@ -5,6 +6,37 @@ import 'package:yaml/yaml.dart';
 
 /// Utility class for project-related operations
 class ProjectUtils {
+  /// Cached latest neuron version from pub.dev
+  static String? _cachedVersion;
+
+  /// Fetch the latest neuron package version from pub.dev.
+  /// Falls back to [fallback] if the network request fails.
+  static Future<String> getLatestNeuronVersion({
+    String fallback = '1.5.0',
+  }) async {
+    if (_cachedVersion != null) return _cachedVersion!;
+
+    try {
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 5);
+      final request =
+          await client.getUrl(Uri.parse('https://pub.dev/api/packages/neuron'));
+      final response = await request.close();
+
+      if (response.statusCode == 200) {
+        final body = await response.transform(utf8.decoder).join();
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        final version = json['latest']?['version'] as String?;
+        if (version != null) {
+          _cachedVersion = version;
+          return version;
+        }
+      }
+    } catch (_) {
+      // Network failure — use fallback
+    }
+    return fallback;
+  }
   /// Check if the current directory is a Neuron/Flutter project
   static Future<bool> isNeuronProject() async {
     final pubspecFile = File(path.join(Directory.current.path, 'pubspec.yaml'));

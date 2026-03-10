@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import 'package:recase/recase.dart';
 
 import '../templates/templates.dart';
+import 'di_generator.dart';
 
 /// Generator for creating a standalone (shared) controller
 class ControllerGenerator {
@@ -28,5 +29,15 @@ class ControllerGenerator {
     // Generate controller
     await File(path.join(controllersDir, '${rc.snakeCase}_controller.dart'))
         .writeAsString(ControllerTemplates.controllerDart(controllerName));
+
+    // Register controller in DI
+    final diGen = DiGenerator(logger: logger);
+    await diGen.addController(
+      name: controllerName,
+      className: '${rc.pascalCase}Controller',
+      importPath:
+          '../shared/controllers/${rc.snakeCase}_controller.dart',
+      isShared: true,
+    );
   }
 }

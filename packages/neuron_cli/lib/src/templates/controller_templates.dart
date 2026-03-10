@@ -15,9 +15,8 @@ import 'package:neuron/neuron.dart';
 /// final c = ${rc.pascalCase}Controller.init;
 /// ```
 class ${rc.pascalCase}Controller extends NeuronController {
-  /// Static getter for the controller (lazy singleton)
-  static ${rc.pascalCase}Controller get init =>
-      Neuron.ensure<${rc.pascalCase}Controller>(() => ${rc.pascalCase}Controller());
+  /// Static getter for the controller
+  static ${rc.pascalCase}Controller get init => Neuron.use<${rc.pascalCase}Controller>();
 
   // ============================================
   // Signals - Reactive state

@@ -101,12 +101,16 @@ class GenerateScreenCommand extends Command<int> {
           '  lib/modules/${rc.snakeCase}/${rc.snakeCase}_controller.dart');
       _logger.info('  lib/modules/${rc.snakeCase}/${rc.snakeCase}_view.dart');
       _logger.info('');
+      _logger.info('Updated:');
+      _logger.info('  lib/routes/app_routes.dart');
+      _logger.info('  lib/di/injector.dart');
+      _logger.info('');
       _logger.info('Usage in view:');
       _logger.info('  final c = ${rc.pascalCase}Controller.init;');
       _logger.info('');
       _logger.info('Navigate using:');
+      _logger.info("  Neuron.toNamed('${rc.camelCase}');");
       _logger.info('  Neuron.to(const ${rc.pascalCase}View());');
-      _logger.info('  Neuron.off(const ${rc.pascalCase}View());  // replace');
       _logger.info('  Neuron.back();  // pop');
 
       _logger.info('');

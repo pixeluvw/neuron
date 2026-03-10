@@ -4,6 +4,9 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as path;
 
 import '../templates/templates.dart';
+import '../utils/project_utils.dart';
+import 'di_generator.dart';
+import 'route_generator.dart';
 
 /// Generator for creating a new Neuron project
 class ProjectGenerator {
@@ -51,6 +54,7 @@ class ProjectGenerator {
   }
 
   Future<void> _generateCleanPubspec() async {
+    final neuronVersion = await ProjectUtils.getLatestNeuronVersion();
     final pubspecFile = File(path.join(projectPath, 'pubspec.yaml'));
     final content = '''name: $projectName
 description: "A new Flutter/Neuron project."
@@ -64,10 +68,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  neuron:
-    git:
-      url: https://github.com/pixeluvw/Neuron-Framework.git
-      path: packages/neuron
+  neuron: ^$neuronVersion
 
 dev_dependencies:
   flutter_test:
@@ -84,12 +85,17 @@ flutter:
     // Modular structure: each screen is a self-contained module
     final directories = [
       'lib/modules', // Self-contained screen modules
-      'lib/modules/home', // Home module (controller + view)
       'lib/shared/models', // Shared data models
       'lib/shared/widgets', // Shared widgets
       'lib/shared/services', // Shared services (API, storage, etc.)
       'lib/shared/utils', // Shared utilities
+      'lib/routes', // Central route registry
+      'lib/di', // Dependency injection
     ];
+
+    if (!isEmpty) {
+      directories.add('lib/modules/home');
+    }
 
     for (final dir in directories) {
       await Directory(path.join(projectPath, dir)).create(recursive: true);
@@ -110,6 +116,47 @@ flutter:
       await File(path.join(
               projectPath, 'lib', 'modules', 'home', 'home_view.dart'))
           .writeAsString(ProjectTemplates.homeViewDart());
+
+      // Generate initial routes with home
+      final savedDir = Directory.current;
+      Directory.current = Directory(projectPath);
+      try {
+        final routeGen = RouteGenerator(logger: logger);
+        await routeGen.generateInitial(projectName, [
+          const RouteEntry(
+            name: 'home',
+            path: '/',
+            module: 'home',
+            view: 'HomeView',
+          ),
+        ]);
+
+        // Generate initial DI with home controller
+        final diGen = DiGenerator(logger: logger);
+        await diGen.generateInitial([
+          const ControllerEntry(
+            name: 'home',
+            className: 'HomeController',
+            importPath: '../modules/home/home_controller.dart',
+            isShared: false,
+          ),
+        ]);
+      } finally {
+        Directory.current = savedDir;
+      }
+    } else {
+      // Generate empty routes and DI
+      final savedDir = Directory.current;
+      Directory.current = Directory(projectPath);
+      try {
+        final routeGen = RouteGenerator(logger: logger);
+        await routeGen.generateInitial(projectName, []);
+
+        final diGen = DiGenerator(logger: logger);
+        await diGen.generateInitial([]);
+      } finally {
+        Directory.current = savedDir;
+      }
     }
   }
 }
