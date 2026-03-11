@@ -18,6 +18,7 @@ class GenerateCommand extends Command<int> {
     addSubcommand(GenerateWidgetCommand(logger: _logger));
     addSubcommand(GenerateMiddlewareCommand(logger: _logger));
     addSubcommand(GeneratePageCommand(logger: _logger));
+    addSubcommand(GenerateThemeCommand(logger: _logger));
   }
 
   final Logger _logger;
@@ -30,7 +31,7 @@ class GenerateCommand extends Command<int> {
 
   @override
   String get description =>
-      'Generate Neuron components (screen, controller, model, service, widget, middleware, page)';
+      'Generate Neuron components (screen, controller, model, service, widget, middleware, page, theme)';
 }
 
 /// Generate a complete screen with controller, view, and route registration
@@ -583,6 +584,101 @@ class GeneratePageCommand extends Command<int> {
       return ExitCode.success.code;
     } catch (e) {
       progress.fail('Failed to generate page');
+      _logger.err('$e');
+      return ExitCode.software.code;
+    }
+  }
+}
+
+/// Generate a light/dark theme
+class GenerateThemeCommand extends Command<int> {
+  GenerateThemeCommand({required Logger logger}) : _logger = logger {
+    argParser
+      ..addOption(
+        'color',
+        abbr: 'c',
+        help: 'Seed color (name or hex). Examples: indigo, blue, #FF5722',
+        defaultsTo: 'indigo',
+      )
+      ..addOption(
+        'style',
+        abbr: 's',
+        help: 'Theme style variant',
+        allowed: ['material', 'minimal', 'glassmorphic'],
+        defaultsTo: 'material',
+      )
+      ..addFlag(
+        'with-controller',
+        help: 'Generate a ThemeController for runtime theme switching',
+        negatable: false,
+      );
+  }
+
+  final Logger _logger;
+
+  @override
+  String get name => 'theme';
+
+  @override
+  List<String> get aliases => ['t'];
+
+  @override
+  String get description =>
+      'Generate a light/dark theme (Material, Minimal, or Glassmorphic)';
+
+  @override
+  String get invocation =>
+      'neuron generate theme [--color <color>] [--style <style>]';
+
+  @override
+  Future<int> run() async {
+    if (!await ProjectUtils.isNeuronProject()) {
+      _logger.err('Not in a Neuron/Flutter project directory.');
+      return ExitCode.usage.code;
+    }
+
+    final seedColor = argResults!['color'] as String;
+    final style = argResults!['style'] as String;
+    final withController = argResults!['with-controller'] as bool;
+
+    final progress = _logger.progress('Generating $style theme');
+
+    try {
+      final generator = ThemeGenerator(
+        seedColor: seedColor,
+        style: style,
+        withController: withController,
+        logger: _logger,
+      );
+
+      await generator.generate();
+
+      progress.complete('Theme generated successfully!');
+
+      _logger.info('');
+      _logger.success('✓ Generated $style light/dark theme');
+      _logger.info('');
+      _logger.info('Created files:');
+      _logger.info('  lib/app/theme.dart');
+      if (withController) {
+        _logger.info('  lib/shared/controllers/theme_controller.dart');
+      }
+      _logger.info('');
+      _logger.info('Usage in main.dart:');
+      _logger.info('  theme: AppTheme.light,');
+      _logger.info('  darkTheme: AppTheme.dark,');
+      _logger.info('  themeMode: ThemeMode.system,');
+      if (withController) {
+        _logger.info('');
+        _logger.info('Runtime switching:');
+        _logger.info('  final tc = ThemeController.init;');
+        _logger.info('  tc.toggleTheme();');
+      }
+      _logger.info('');
+
+      return ExitCode.success.code;
+    } catch (e) {
+      progress.fail('Failed to generate theme');
       _logger.err('$e');
       return ExitCode.software.code;
     }

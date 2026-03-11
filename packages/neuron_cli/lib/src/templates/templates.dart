@@ -11,3 +11,5 @@ export 'service_templates.dart';
 export 'widget_templates.dart';
 export 'middleware_templates.dart';
 export 'page_templates.dart';
+export 'theme_gen_templates.dart';
+export 'language_templates.dart';

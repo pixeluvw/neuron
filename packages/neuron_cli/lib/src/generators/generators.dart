@@ -12,3 +12,5 @@ export 'service_generator.dart';
 export 'widget_generator.dart';
 export 'page_generator.dart';
 export 'rename_generator.dart';
+export 'theme_generator.dart';
+export 'language_generator.dart';

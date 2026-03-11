@@ -21,6 +21,7 @@ class NeuronCliRunner {
       ..addCommand(RemoveCommand(logger: _logger))
       ..addCommand(ListCommand(logger: _logger))
       ..addCommand(RenameCommand(logger: _logger))
+      ..addCommand(LanguageCommand(logger: _logger))
       ..addCommand(DoctorCommand(logger: _logger))
       ..addCommand(UpgradeCommand(logger: _logger))
       ..argParser.addFlag(
