@@ -20,7 +20,7 @@
 /// - ✅ **StatelessWidget Only**: No boilerplate, just reactive bindings
 /// - ✅ **Auto-disposal**: Signals disposed with controllers
 /// - ✅ **Type-safe**: Full Dart 3 pattern matching support
-/// - ✅ **Feature-rich**: Persistence, middleware, DevTools, animations
+/// - ✅ **Feature-rich**: Persistence, middleware, animations
 ///
 /// ## Quick Start
 ///
@@ -134,13 +134,7 @@
 /// Neuron.toNamed('/settings');    // Named route
 /// ```
 ///
-/// ### DevTools Integration
-///
-/// Built-in debugging support:
-/// - Signal state inspection
-/// - Event history tracking
-/// - Time-travel debugging
-///
+
 /// ## More Information
 ///
 /// - [README](https://github.com/pixeluvw/neuron) - Full documentation
@@ -163,7 +157,7 @@ export 'src/neuron_atom.dart';
 export 'src/neuron_signals.dart';
 
 /// Extensions: Collection signals, rate limiting, middleware, persistence,
-/// effects, DevTools, advanced slots (AnimatedSlot, SpringSlot, etc.)
+/// effects, advanced slots (AnimatedSlot, SpringSlot, etc.)
 export 'src/neuron_extensions.dart';
 
 /// Navigation: NeuronRoute, page transitions, middleware

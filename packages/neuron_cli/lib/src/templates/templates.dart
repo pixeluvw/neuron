@@ -7,3 +7,7 @@ export 'controller_templates.dart';
 export 'model_templates.dart';
 export 'route_templates.dart';
 export 'di_templates.dart';
+export 'service_templates.dart';
+export 'widget_templates.dart';
+export 'middleware_templates.dart';
+export 'page_templates.dart';

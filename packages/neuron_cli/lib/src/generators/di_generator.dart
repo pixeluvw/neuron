@@ -86,4 +86,10 @@ class DiGenerator {
   Future<void> generateInitial(List<ControllerEntry> controllers) async {
     await _writeManifest(controllers);
   }
+
+  /// Regenerate injector.dart from the manifest (used by upgrade --regen)
+  Future<void> regenerateFromManifest() async {
+    final controllers = await _readManifest();
+    await _writeManifest(controllers);
+  }
 }

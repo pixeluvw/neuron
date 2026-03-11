@@ -15,10 +15,11 @@
 // │ neuron_middleware.dart     │ Signal interceptors and transformers         │
 // │ neuron_persistence.dart    │ SharedPreferences & Hive adapters            │
 // │ neuron_effects.dart        │ Reactions, when(), autorun()                 │
-// │ neuron_performance_monitor │ Memory, rebuild, and timing metrics          │
 // │ neuron_utilities.dart      │ Helper functions and common patterns         │
 // │ neuron_advanced.dart       │ UndoableSignal, FormSignal, ComputedAsync    │
-// │ neuron_slots.dart          │ AnimatedSlot, SpringSlot, MorphSlot, etc.    │
+// │ neuron_slot_effects.dart   │ SlotEffect, DirectionalEffect, SpringConfig │
+// │ neuron_animated_slots.dart │ AnimatedSlot, SpringSlot, MorphSlot, etc.    │
+// │ neuron_multi_slot.dart     │ MultiSlot with type-safe t2..t6 constructors │
 // └──────────────────────────┴──────────────────────────────────────────────────┘
 //
 // USAGE:
@@ -34,16 +35,14 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
+import 'platform/isolate_imports_stub.dart'
+    if (dart.library.io) 'platform/isolate_imports_io.dart';
 import 'dart:math';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Icons, Colors;
 import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
-
-import 'platform/process_info_stub.dart'
-    if (dart.library.io) 'platform/process_info_io.dart';
 
 import 'neuron_core.dart';
 
@@ -52,7 +51,9 @@ part 'neuron_rate_limiting.dart';
 part 'neuron_middleware.dart';
 part 'neuron_persistence.dart';
 part 'neuron_effects.dart';
-part 'neuron_performance_monitor.dart';
+
 part 'neuron_utilities.dart';
 part 'neuron_advanced.dart';
-part 'neuron_slots.dart';
+part 'neuron_slot_effects.dart';
+part 'neuron_animated_slots.dart';
+part 'neuron_multi_slot.dart';

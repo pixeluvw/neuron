@@ -143,24 +143,54 @@ class UndoableSignal<T> extends Signal<T> {
 class SignalSelector<T, S> extends Signal<S> {
   final Signal<T> source;
   final S Function(T value) selector;
-  StreamSubscription<T>? _subscription;
+  VoidCallback? _cleanup;
 
   SignalSelector(
     this.source,
     this.selector, {
     String? debugLabel,
-  }) : super(selector(source.val), debugLabel: debugLabel) {
-    _subscription = source.stream.listen((value) {
-      final selected = selector(value);
+  }) : super(selector(source.val), debugLabel: debugLabel);
+
+  /// When cold (no listeners), always recompute from source.
+  @override
+  S get value {
+    if (!hasListeners) {
+      return selector(source.val);
+    }
+    return super.value;
+  }
+
+  @override
+  S get val => value;
+
+  /// Subscribe to source when first listener is added.
+  @override
+  void onActive() {
+    super.onActive();
+    // Sync value immediately in case source changed while we were cold
+    final fresh = selector(source.val);
+    // Use emit to update — this will only fire if the value actually changed
+    emit(fresh);
+    _cleanup = source.subscribe(() {
+      final selected = selector(source.val);
       if (val != selected) {
         emit(selected);
       }
     });
   }
 
+  /// Unsubscribe from source when last listener is removed.
+  @override
+  void onInactive() {
+    super.onInactive();
+    _cleanup?.call();
+    _cleanup = null;
+  }
+
   @override
   void dispose() {
-    _subscription?.cancel();
+    _cleanup?.call();
+    _cleanup = null;
     super.dispose();
   }
 }
@@ -586,8 +616,8 @@ class _FormSlotState<T> extends State<FormSlot<T>> {
 /// ```
 class ComputedAsync<T> extends AsyncSignal<T> {
   final Future<T> Function() _compute;
-  final List<Listenable> _dependencies;
-  final List<VoidCallback> _listeners = [];
+  final List<NeuronAtom> _dependencies;
+  final List<VoidCallback> _cancels = [];
   bool _isComputing = false;
 
   ComputedAsync(
@@ -598,14 +628,12 @@ class ComputedAsync<T> extends AsyncSignal<T> {
     // Initial computation
     _recompute();
 
-    // Listen to dependencies
+    // Listen to dependencies using Neuron's own subscribe()
     for (final dep in _dependencies) {
-      void listener() {
+      final cancel = dep.subscribe(() {
         _recompute();
-      }
-
-      _listeners.add(listener);
-      dep.addListener(listener);
+      });
+      _cancels.add(cancel);
     }
   }
 
@@ -626,10 +654,10 @@ class ComputedAsync<T> extends AsyncSignal<T> {
 
   @override
   void dispose() {
-    for (int i = 0; i < _dependencies.length; i++) {
-      _dependencies[i].removeListener(_listeners[i]);
+    for (final cancel in _cancels) {
+      cancel();
     }
-    _listeners.clear();
+    _cancels.clear();
     super.dispose();
   }
 }
@@ -646,8 +674,9 @@ class ComputedAsync<T> extends AsyncSignal<T> {
 
 /// Batch multiple signal updates into a single notification.
 ///
-/// This is useful when you need to update multiple signals and only
-/// want to trigger UI rebuilds once.
+/// During the batch, listener notifications are deferred. When the batch
+/// completes, each affected atom is notified exactly once, regardless of
+/// how many times it was updated.
 ///
 /// Example:
 /// ```dart
@@ -661,9 +690,7 @@ class ComputedAsync<T> extends AsyncSignal<T> {
 /// }
 /// ```
 void batch(void Function() updates) {
-  // For now, just execute immediately
-  // In a more advanced implementation, you could defer notifications
-  updates();
+  NeuronBatch.run(updates);
 }
 
 /// Extension to add batching support to signals.

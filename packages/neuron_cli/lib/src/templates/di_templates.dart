@@ -1,5 +1,6 @@
 /// Controller entry for DI manifest tracking
 class ControllerEntry {
+  /// Creates a new controller entry for registration and tracking.
   const ControllerEntry({
     required this.name,
     required this.className,
@@ -7,6 +8,7 @@ class ControllerEntry {
     required this.isShared,
   });
 
+  /// Decodes a controller entry from a JSON manifest.
   factory ControllerEntry.fromJson(Map<String, dynamic> json) =>
       ControllerEntry(
         name: json['name'] as String,
@@ -15,9 +17,16 @@ class ControllerEntry {
         isShared: json['isShared'] as bool,
       );
 
+  /// The registration name of the controller.
   final String name;
+
+  /// The Dart class name of the controller.
   final String className;
+
+  /// The file path for importing the controller.
   final String importPath;
+
+  /// Indicates if the controller is shared across modules.
   final bool isShared;
 
   Map<String, dynamic> toJson() => {

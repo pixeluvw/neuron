@@ -13,7 +13,7 @@
 // │ NeuronController        │ Base class for business logic with lifecycle    │
 // │ Slot<T>                 │ Widget that rebuilds when signal emits          │
 // │ AsyncSlot<T>            │ Widget for async signal (loading/data/error)    │
-// │ NeuronApp               │ MaterialApp wrapper with DevTools integration   │
+// │ NeuronApp               │ MaterialApp wrapper with routing integration    │
 // └─────────────────────────┴───────────────────────────────────────────────────┘
 //
 // SIGNAL/SLOT PATTERN:

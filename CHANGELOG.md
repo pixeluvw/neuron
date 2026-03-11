@@ -5,6 +5,35 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-03-04
+
+### Added
+- **Comprehensive Test Coverage**: Expanded test suite from 77 to 214 tests covering all core modules, navigation, persistence, widgets, and animations.
+- **Lazy Computed**: `Computed` signals are now truly lazy. Initial computation is deferred until the first `.value` access, and subsequent dependency changes only mark the signal as stale without eagerly recomputing or wasting CPU cycles.
+
+### Fixed
+- **ComputedAsync Dependencies**: Fixed `ComputedAsync` to accept native `NeuronAtom` list dependencies (e.g., `Signal`) instead of requiring Flutter's `Listenable`, resolving an API mismatch.
+- **Default Transition Specs**: Fixed `NeuronTransitionSpec` defaults scaling correctly with easeOutCubic curves.
+
+### Documentation
+- **Real-World Patterns**: Replaced minimal README examples with robust, production-ready code patterns for Form Handling & Validation, Authentication Flow (with Route Guards), and Pagination & Infinite Scroll.
+
+
+## [1.4.1] - 2026-03-02
+
+### Fixed
+- `batch()` now actually batches and coalesces notifications
+- `NeuronAtomPool` O(1) lookup instead of O(n) linear scan
+- `AnimatedSlot` listener leak in `transitionBuilder`
+- WASM compatibility — conditional `dart:isolate` import
+
+### Changed
+- `SignalSelector` uses lazy subscription (subscribe on active, unsubscribe on inactive)
+- Split `neuron_slots.dart` into `neuron_slot_effects.dart`, `neuron_animated_slots.dart`, `neuron_multi_slot.dart`
+
+### Removed
+- Unused dependencies: `shelf`, `shelf_static`, `web_socket_channel`, `device_info_plus`
+
 ## [1.4.0] - 2026-03-01
 
 ### Added
@@ -23,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.3] - 2026-03-01
 
 ### Fixed
-- **Pub.dev Platform Support**: Resolved a strict static analysis issue where default `dart:io` compiler imports flagged the package as strictly non-WASM compatible on the pub.dev backend. Defaulted DevTools imports to web-safe stubs, unlocking the verified WebAssembly tier.
+- **Pub.dev Platform Support**: Resolved a strict static analysis issue where default `dart:io` compiler imports flagged the package as strictly non-WASM compatible. Defaulted platform-specific imports to web-safe stubs, unlocking the verified WebAssembly tier.
 
 ## [1.3.2] - 2026-03-01
 
@@ -38,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - 2026-03-01
 
 ### Added
-- **Web Platform Compatibility**: Completely removed `dart:io` restrictions. Added `ProcessInfoProxy` and WebSocket stubs for native compilation support on Flutter Web (`dart2js` & `dart2wasm`).
+- **Web Platform Compatibility**: Completely removed `dart:io` restrictions. Added platform stubs for native compilation support on Flutter Web (`dart2js` & `dart2wasm`).
 - **O(1) Collection Mutations**: `ListSignal`, `MapSignal`, and `SetSignal` now feature a high-performance `.mutate((data) { })` callback. This enables in-place data modifications that bypass structural equality clones, unlocking 60FPS streaming for extensive payloads.
 - **RAII Finalizers**: `NeuronAtom` instances now natively hook into the Dart VM Garbage Collector. Un-bound, dynamically generated Signals automatically sweeping their `StreamControllers` from memory when abandoned to eliminate lifecycle leaks.
 
@@ -249,8 +278,6 @@ NeuronApp(
 
 ### Added
 - **Documentation**: Comprehensive Dartdoc comments with usage examples for all public APIs.
-- **DevTools Auto-Registration**: Signals bound to a controller with `.bind(this)` are now automatically registered with DevTools.
-- **Unified Debug Server**: New WebSocket + HTTP debug server for better tooling integration.
 - **New Middleware**:
   - `RateLimitMiddleware` - Limits emission frequency
   - `ConditionalMiddleware` - Conditional value emission
@@ -261,13 +288,6 @@ NeuronApp(
   - `BinaryPersistence` - Custom binary serialization
   - `EncryptedPersistence` - Encrypted storage wrapper
   - `VersionedPersistence` - Versioned data with migration support
-- **DevTools Enhancements**:
-  - Event filtering by type and signal ID
-  - Time range queries
-  - Custom event recording
-  - Checkpoint creation and restoration
-  - Snapshot comparison
-  - Activity statistics
 - **Performance**:
   - Cached computed signals with TTL
   - Lazy signal initialization
@@ -280,7 +300,6 @@ NeuronApp(
 ### Planned
 - More middleware types
 - Additional persistence adapters
-- Enhanced DevTools features
 - Performance optimizations
 - More comprehensive tests
 - Create Dartdoc reference documentation
