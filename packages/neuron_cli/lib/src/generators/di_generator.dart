@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
@@ -8,88 +7,81 @@ import '../templates/templates.dart';
 
 /// Generator for managing the central DI injector file.
 ///
-/// Uses a JSON manifest (`lib/di/.controllers.json`) as source of truth.
-/// Always regenerates `lib/di/injector.dart` from the manifest.
+/// Uses `lib/di/injector.dart` as the single source of truth.
+/// Parses the Dart file to read entries and regenerates it after mutations.
 class DiGenerator {
   DiGenerator({required this.logger});
 
   final Logger logger;
 
   String get _diDir => path.join(Directory.current.path, 'lib', 'di');
-  String get _manifestPath => path.join(_diDir, '.controllers.json');
   String get _injectorPath => path.join(_diDir, 'injector.dart');
 
-  /// Read the current controller manifest
-  Future<List<ControllerEntry>> _readManifest() async {
-    final file = File(_manifestPath);
+  /// Read the current entries by parsing the generated Dart file.
+  Future<List<ControllerEntry>> _readEntries() async {
+    final file = File(_injectorPath);
     if (!await file.exists()) return [];
 
     try {
       final content = await file.readAsString();
-      final list = jsonDecode(content) as List;
-      return list
-          .map((e) => ControllerEntry.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return DiTemplates.parseInjectorDart(content);
     } catch (_) {
       return [];
     }
   }
 
-  /// Write the manifest and regenerate injector.dart
-  Future<void> _writeManifest(List<ControllerEntry> controllers) async {
+  /// Write entries by regenerating injector.dart.
+  Future<void> _writeEntries(List<ControllerEntry> entries) async {
     await Directory(_diDir).create(recursive: true);
-
-    // Write JSON manifest
-    final json =
-        const JsonEncoder.withIndent('  ').convert(controllers.map((c) => c.toJson()).toList());
-    await File(_manifestPath).writeAsString(json);
-
-    // Regenerate injector.dart
     await File(_injectorPath)
-        .writeAsString(DiTemplates.injectorDart(controllers));
+        .writeAsString(DiTemplates.injectorDart(entries));
   }
 
-  /// Add a controller to the DI manifest and regenerate
+  /// Add a controller to the DI registry and regenerate.
   Future<void> addController({
     required String name,
     required String className,
     required String importPath,
     required bool isShared,
+    EntryType type = EntryType.controller,
   }) async {
-    final controllers = await _readManifest();
+    final entries = await _readEntries();
 
     // Skip if already registered
-    if (controllers.any((c) => c.className == className)) return;
+    if (entries.any((c) => c.className == className)) return;
 
-    controllers.add(ControllerEntry(
+    entries.add(ControllerEntry(
       name: name,
       className: className,
       importPath: importPath,
       isShared: isShared,
+      type: type,
     ));
 
-    await _writeManifest(controllers);
+    await _writeEntries(entries);
   }
 
-  /// Remove a controller from the DI manifest and regenerate
+  /// Remove a controller from the DI registry and regenerate.
   Future<void> removeController(String className) async {
-    final controllers = await _readManifest();
-    final before = controllers.length;
-    controllers.removeWhere((c) => c.className == className);
+    final entries = await _readEntries();
+    final before = entries.length;
+    entries.removeWhere((c) => c.className == className);
 
-    if (controllers.length < before) {
-      await _writeManifest(controllers);
+    if (entries.length < before) {
+      await _writeEntries(entries);
     }
   }
 
-  /// Generate the initial injector from a list of entries (used by create/init)
-  Future<void> generateInitial(List<ControllerEntry> controllers) async {
-    await _writeManifest(controllers);
+  /// Generate the initial injector from a list of entries (used by create/init).
+  Future<void> generateInitial(List<ControllerEntry> entries) async {
+    await _writeEntries(entries);
   }
 
-  /// Regenerate injector.dart from the manifest (used by upgrade --regen)
-  Future<void> regenerateFromManifest() async {
-    final controllers = await _readManifest();
-    await _writeManifest(controllers);
+  /// Regenerate injector.dart from its current content (used by upgrade --regen).
+  ///
+  /// Useful when the template format changes after a CLI upgrade.
+  Future<void> regenerate() async {
+    final entries = await _readEntries();
+    await _writeEntries(entries);
   }
 }

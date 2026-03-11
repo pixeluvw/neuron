@@ -201,6 +201,35 @@ void main() {
       expect(output, contains('final List<NeuronRoute> appRoutes = ['));
       expect(output, contains('];'));
     });
+
+    test('round-trips routes through generate → parse', () {
+      final routes = [
+        const RouteEntry(name: 'home', path: '/', module: 'home', view: 'HomeView'),
+        const RouteEntry(
+          name: 'settings',
+          path: '/settings',
+          module: 'settings',
+          view: 'SettingsView',
+        ),
+      ];
+      final output = RouteTemplates.appRoutesDart('test_app', routes);
+      final parsed = RouteTemplates.parseAppRoutesDart(output);
+
+      expect(parsed.length, equals(2));
+      expect(parsed[0].name, equals('home'));
+      expect(parsed[0].path, equals('/'));
+      expect(parsed[0].module, equals('home'));
+      expect(parsed[0].view, equals('HomeView'));
+      expect(parsed[1].name, equals('settings'));
+      expect(parsed[1].path, equals('/settings'));
+      expect(parsed[1].view, equals('SettingsView'));
+    });
+
+    test('parses empty route file', () {
+      final output = RouteTemplates.appRoutesDart('test_app', []);
+      final parsed = RouteTemplates.parseAppRoutesDart(output);
+      expect(parsed, isEmpty);
+    });
   });
 
   group('DiTemplates', () {
@@ -229,6 +258,77 @@ void main() {
     test('generates empty injector file', () {
       final output = DiTemplates.injectorDart([]);
       expect(output, contains('void setupDependencies()'));
+    });
+
+    test('round-trips entries through generate → parse', () {
+      final entries = [
+        const ControllerEntry(
+          name: 'supabase_repository',
+          className: 'SupabaseRepositoryService',
+          importPath: '../shared/services/supabase_repository_service.dart',
+          isShared: true,
+          type: EntryType.service,
+        ),
+        const ControllerEntry(
+          name: 'home',
+          className: 'HomeController',
+          importPath: '../modules/home/home_controller.dart',
+          isShared: false,
+        ),
+        const ControllerEntry(
+          name: 'auth',
+          className: 'AuthService',
+          importPath: '../shared/services/auth_service.dart',
+          isShared: true,
+          type: EntryType.service,
+        ),
+      ];
+      final output = DiTemplates.injectorDart(entries);
+      final parsed = DiTemplates.parseInjectorDart(output);
+
+      // Services come first in the output
+      expect(parsed.length, equals(3));
+
+      expect(parsed[0].className, equals('SupabaseRepositoryService'));
+      expect(parsed[0].type, equals(EntryType.service));
+      expect(parsed[0].importPath,
+          equals('../shared/services/supabase_repository_service.dart'));
+
+      expect(parsed[1].className, equals('AuthService'));
+      expect(parsed[1].type, equals(EntryType.service));
+
+      expect(parsed[2].className, equals('HomeController'));
+      expect(parsed[2].type, equals(EntryType.controller));
+      expect(parsed[2].importPath,
+          equals('../modules/home/home_controller.dart'));
+    });
+
+    test('parses empty injector file', () {
+      final output = DiTemplates.injectorDart([]);
+      final parsed = DiTemplates.parseInjectorDart(output);
+      expect(parsed, isEmpty);
+    });
+
+    test('services are registered before controllers', () {
+      final entries = [
+        const ControllerEntry(
+          name: 'queue',
+          className: 'QueueController',
+          importPath: '../modules/queue/queue_controller.dart',
+          isShared: false,
+        ),
+        const ControllerEntry(
+          name: 'api',
+          className: 'ApiService',
+          importPath: '../shared/services/api_service.dart',
+          isShared: true,
+          type: EntryType.service,
+        ),
+      ];
+      final output = DiTemplates.injectorDart(entries);
+      final serviceIdx = output.indexOf('Neuron.install<ApiService>');
+      final controllerIdx = output.indexOf('Neuron.install<QueueController>');
+      expect(serviceIdx, lessThan(controllerIdx));
     });
   });
 
@@ -355,6 +455,131 @@ void main() {
       expect(output, contains('class ProductsService extends NeuronController'));
       expect(output, contains('Future<List<Map<String, dynamic>>> getAll()'));
       expect(output, contains('Future<void> delete(String id)'));
+    });
+  });
+
+  group('ModelTemplates', () {
+    test('generates model with basic field types', () {
+      final fields = [
+        const ModelField(name: 'id', type: 'int', isNullable: false),
+        const ModelField(name: 'name', type: 'String', isNullable: false),
+        const ModelField(name: 'score', type: 'double', isNullable: false),
+        const ModelField(name: 'active', type: 'bool', isNullable: false),
+      ];
+      final output = ModelTemplates.modelDart('user', fields);
+      expect(output, contains('class User {'));
+      expect(output, contains('required this.id,'));
+      expect(output, contains('required this.name,'));
+      expect(output, contains('final int id;'));
+      expect(output, contains('final String name;'));
+      expect(output, contains('final double score;'));
+      expect(output, contains('final bool active;'));
+    });
+
+    test('generates nullable fields without required', () {
+      final fields = [
+        const ModelField(name: 'bio', type: 'String', isNullable: true),
+        const ModelField(name: 'age', type: 'int', isNullable: true),
+      ];
+      final output = ModelTemplates.modelDart('profile', fields);
+      expect(output, contains('this.bio,'));
+      expect(output, contains('this.age,'));
+      expect(output, contains('final String? bio;'));
+      expect(output, contains('final int? age;'));
+    });
+
+    test('generates empty() factory with defaults', () {
+      final fields = [
+        const ModelField(name: 'id', type: 'int', isNullable: false),
+        const ModelField(name: 'name', type: 'String', isNullable: false),
+        const ModelField(name: 'bio', type: 'String', isNullable: true),
+      ];
+      final output = ModelTemplates.modelDart('user', fields);
+      expect(output, contains('factory User.empty()'));
+      expect(output, contains("name: '',"));
+      expect(output, contains('id: 0,'));
+      expect(output, contains('bio: null,'));
+    });
+
+    test('generates copyWith method', () {
+      final fields = [
+        const ModelField(name: 'name', type: 'String', isNullable: false),
+      ];
+      final output = ModelTemplates.modelDart('item', fields);
+      expect(output, contains('Item copyWith({'));
+      expect(output, contains('String? name,'));
+      expect(output, contains('name: name ?? this.name,'));
+    });
+
+    test('generates fromJson/toJson with DateTime (ISO 8601)', () {
+      final fields = [
+        const ModelField(name: 'createdAt', type: 'DateTime', isNullable: false),
+        const ModelField(name: 'deletedAt', type: 'DateTime', isNullable: true),
+      ];
+      final output = ModelTemplates.modelDart('event', fields);
+      expect(output, contains('DateTime.parse('));
+      expect(output, contains('.toIso8601String()'));
+    });
+
+    test('generates fromJsonList static', () {
+      final fields = [
+        const ModelField(name: 'id', type: 'int', isNullable: false),
+      ];
+      final output = ModelTemplates.modelDart('item', fields);
+      expect(output, contains('static List<Item> fromJsonList(List<dynamic> list)'));
+    });
+
+    test('generates List<T> fromJson/toJson correctly', () {
+      final fields = [
+        const ModelField(name: 'tags', type: 'List<String>', isNullable: false),
+      ];
+      final output = ModelTemplates.modelDart('post', fields);
+      // fromJson should cast list items
+      expect(output, contains("(json['tags'] as List)"));
+      // Should import foundation for listEquals
+      expect(output, contains("import 'package:flutter/foundation.dart';"));
+      // equality uses listEquals
+      expect(output, contains('listEquals(tags, other.tags)'));
+    });
+
+    test('generates nested model fromJson/toJson', () {
+      final fields = [
+        const ModelField(name: 'address', type: 'Address', isNullable: false),
+        const ModelField(name: 'backup', type: 'Address', isNullable: true),
+      ];
+      final output = ModelTemplates.modelDart('contact', fields);
+      expect(output, contains('Address.fromJson('));
+      expect(output, contains('address.toJson()'));
+      expect(output, contains('backup?.toJson()'));
+    });
+
+    test('generates == and hashCode', () {
+      final fields = [
+        const ModelField(name: 'id', type: 'int', isNullable: false),
+        const ModelField(name: 'name', type: 'String', isNullable: false),
+      ];
+      final output = ModelTemplates.modelDart('thing', fields);
+      expect(output, contains('bool operator ==(Object other)'));
+      expect(output, contains('other is Thing'));
+      expect(output, contains('id == other.id'));
+      expect(output, contains('name == other.name'));
+      expect(output, contains('Object.hash(id, name)'));
+    });
+
+    test('generates toString', () {
+      final fields = [
+        const ModelField(name: 'id', type: 'int', isNullable: false),
+      ];
+      final output = ModelTemplates.modelDart('widget_data', fields);
+      expect(output, contains("toString() => 'WidgetData("));
+    });
+
+    test('does not import foundation when no list fields', () {
+      final fields = [
+        const ModelField(name: 'id', type: 'int', isNullable: false),
+      ];
+      final output = ModelTemplates.modelDart('simple', fields);
+      expect(output, isNot(contains('foundation.dart')));
     });
   });
 

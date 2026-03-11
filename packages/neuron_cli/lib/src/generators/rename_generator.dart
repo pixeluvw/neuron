@@ -4,6 +4,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as path;
 import 'package:recase/recase.dart';
 
+import '../templates/di_templates.dart';
 import 'di_generator.dart';
 import 'route_generator.dart';
 
@@ -182,6 +183,7 @@ class RenameGenerator {
       className: '${newRc.pascalCase}Service',
       importPath: '../shared/services/${newRc.snakeCase}_service.dart',
       isShared: true,
+      type: EntryType.service,
     );
 
     await _updateImportsInProject(oldRc, newRc);

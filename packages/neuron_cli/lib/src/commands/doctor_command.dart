@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as path;
 
+import '../templates/templates.dart';
 import '../utils/utils.dart';
 
 /// Command to diagnose project health
@@ -99,52 +99,62 @@ class DoctorCommand extends Command<int> {
       }
     }
 
-    // 5. Check manifests
+    // 5. Check generated files
     _logger.info('');
-    _logger.info('📋 Manifests:');
+    _logger.info('📋 Generated Files:');
 
+    // Routes
     final routesFile =
-        File(path.join(Directory.current.path, 'lib', 'routes', '.routes.json'));
+        File(path.join(Directory.current.path, 'lib', 'routes', 'app_routes.dart'));
     if (await routesFile.exists()) {
       try {
-        final routes = jsonDecode(await routesFile.readAsString()) as List;
-        _logger.success('   ✓ .routes.json (${routes.length} routes)');
+        final content = await routesFile.readAsString();
+        final routes = RouteTemplates.parseAppRoutesDart(content);
+        _logger.success('   ✓ app_routes.dart (${routes.length} routes)');
 
         // Verify each route's module exists
-        for (final route in routes.cast<Map<String, dynamic>>()) {
-          final moduleName = route['module'] as String?;
-          if (moduleName != null) {
-            final moduleDir = Directory(
-                path.join(Directory.current.path, 'lib', 'modules', moduleName));
-            if (!await moduleDir.exists()) {
-              _logger.err(
-                  '   ✗ Route "${route['name']}" references missing module: $moduleName');
-              issues++;
-            }
+        for (final route in routes) {
+          final moduleDir = Directory(
+              path.join(Directory.current.path, 'lib', 'modules', route.module));
+          if (!await moduleDir.exists()) {
+            _logger.err(
+                '   ✗ Route "${route.name}" references missing module: ${route.module}');
+            issues++;
           }
         }
       } catch (e) {
-        _logger.err('   ✗ .routes.json is malformed: $e');
+        _logger.err('   ✗ app_routes.dart is malformed: $e');
         issues++;
       }
     } else {
-      _logger.info('   ○ .routes.json (not created yet)');
+      _logger.info('   ○ app_routes.dart (not created yet)');
     }
 
-    final controllersFile =
-        File(path.join(Directory.current.path, 'lib', 'di', '.controllers.json'));
-    if (await controllersFile.exists()) {
+    // DI
+    final injectorFile =
+        File(path.join(Directory.current.path, 'lib', 'di', 'injector.dart'));
+    if (await injectorFile.exists()) {
       try {
-        final controllers =
-            jsonDecode(await controllersFile.readAsString()) as List;
+        final content = await injectorFile.readAsString();
+        final entries = DiTemplates.parseInjectorDart(content);
         _logger.success(
-            '   ✓ .controllers.json (${controllers.length} entries)');
+            '   ✓ injector.dart (${entries.length} entries)');
       } catch (e) {
-        _logger.err('   ✗ .controllers.json is malformed: $e');
+        _logger.err('   ✗ injector.dart is malformed: $e');
         issues++;
       }
     } else {
-      _logger.info('   ○ .controllers.json (not created yet)');
+      _logger.info('   ○ injector.dart (not created yet)');
+    }
+
+    // main.dart
+    final mainFile =
+        File(path.join(Directory.current.path, 'lib', 'main.dart'));
+    if (await mainFile.exists()) {
+      _logger.success('   ✓ lib/main.dart');
+    } else {
+      _logger.warn('   ⚠ lib/main.dart missing');
+      warnings++;
     }
 
     // 6. Check for orphaned modules
@@ -155,12 +165,9 @@ class DoctorCommand extends Command<int> {
         Directory(path.join(Directory.current.path, 'lib', 'modules'));
     if (await modulesDir.exists() && await routesFile.exists()) {
       try {
-        final routes = jsonDecode(await routesFile.readAsString()) as List;
-        final registeredModules = routes
-            .cast<Map<String, dynamic>>()
-            .map((r) => r['module'] as String?)
-            .whereType<String>()
-            .toSet();
+        final content = await routesFile.readAsString();
+        final routes = RouteTemplates.parseAppRoutesDart(content);
+        final registeredModules = routes.map((r) => r.module).toSet();
 
         for (final dir in modulesDir.listSync().whereType<Directory>()) {
           final moduleName = path.basename(dir.path);
@@ -177,31 +184,10 @@ class DoctorCommand extends Command<int> {
           _logger.success('   ✓ No orphaned modules found');
         }
       } catch (_) {
-        // Already reported manifest issues above
+        // Already reported file issues above
       }
     } else {
       _logger.info('   ○ Skipped (no modules or routes yet)');
-    }
-
-    // 7. Check generated files exist
-    _logger.info('');
-    _logger.info('📝 Generated Files:');
-
-    final generatedFiles = {
-      'lib/routes/app_routes.dart': 'Route definitions',
-      'lib/di/injector.dart': 'Dependency injection setup',
-      'lib/main.dart': 'App entry point',
-    };
-
-    for (final entry in generatedFiles.entries) {
-      final file =
-          File(path.join(Directory.current.path, entry.key));
-      if (await file.exists()) {
-        _logger.success('   ✓ ${entry.key}');
-      } else {
-        _logger.warn('   ⚠ ${entry.key} missing (${entry.value})');
-        warnings++;
-      }
     }
 
     // Summary

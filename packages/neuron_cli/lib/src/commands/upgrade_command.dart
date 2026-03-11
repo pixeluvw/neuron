@@ -12,7 +12,7 @@ class UpgradeCommand extends Command<int> {
   UpgradeCommand({required Logger logger}) : _logger = logger {
     argParser.addFlag(
       'regen',
-      help: 'Regenerate route and DI files from manifests after upgrading',
+      help: 'Regenerate route and DI files after upgrading',
       negatable: false,
     );
   }
@@ -85,10 +85,10 @@ class UpgradeCommand extends Command<int> {
             _logger.progress('Regenerating routes and DI files');
 
         final routeGen = RouteGenerator(logger: _logger);
-        await routeGen.regenerateFromManifest();
+        await routeGen.regenerate();
 
         final diGen = DiGenerator(logger: _logger);
-        await diGen.regenerateFromManifest();
+        await diGen.regenerate();
 
         regenProgress.complete('Files regenerated!');
       }

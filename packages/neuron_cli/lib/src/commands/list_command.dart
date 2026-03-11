@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as path;
+
+import '../templates/templates.dart';
 
 /// Command to list all registered components in the project
 class ListCommand extends Command<int> {
@@ -168,7 +169,7 @@ class ListCommand extends Command<int> {
 
   Future<void> _showRoutes() async {
     final routesFile =
-        File(path.join(Directory.current.path, 'lib', 'routes', '.routes.json'));
+        File(path.join(Directory.current.path, 'lib', 'routes', 'app_routes.dart'));
     if (!await routesFile.exists()) {
       _logger.info('🔗 Routes: (none)');
       _logger.info('');
@@ -177,17 +178,14 @@ class ListCommand extends Command<int> {
 
     try {
       final content = await routesFile.readAsString();
-      final routes = (jsonDecode(content) as List).cast<Map<String, dynamic>>();
+      final routes = RouteTemplates.parseAppRoutesDart(content);
 
       _logger.info('🔗 Routes (${routes.length}):');
       for (final r in routes) {
-        final name = r['name'] ?? '?';
-        final routePath = r['path'] ?? '?';
-        final view = r['view'] ?? '?';
-        _logger.info('   • $name → $routePath ($view)');
+        _logger.info('   • ${r.name} → ${r.path} (${r.view})');
       }
     } catch (e) {
-      _logger.warn('Could not parse .routes.json: $e');
+      _logger.warn('Could not parse app_routes.dart: $e');
     }
     _logger.info('');
   }

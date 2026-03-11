@@ -4,6 +4,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as path;
 import 'package:recase/recase.dart';
 
+import '../templates/di_templates.dart';
 import '../templates/page_templates.dart';
 import 'di_generator.dart';
 import 'route_generator.dart';
@@ -62,6 +63,7 @@ class PageGenerator {
       className: '${rc.pascalCase}Service',
       importPath: '../modules/${rc.snakeCase}/${rc.snakeCase}_service.dart',
       isShared: true,
+      type: EntryType.service,
     );
   }
 }
