@@ -34,7 +34,7 @@ class NeuronCliRunner {
       final results = runner.parse(arguments);
 
       if (results['version'] == true) {
-        _logger.info('neuron_cli version: 1.1.0');
+        _logger.info('neuron_cli version: 1.1.2');
         return ExitCode.success.code;
       }
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- Fixed `list` command: replaced subcommand pattern with positional argument so `neuron list` works without arguments.
+- Fixed test compilation error from merge artifact.
+
 ## 1.1.1
 
 - Maintenance release: refined metadata, updated dependencies, and improved documentation.
