@@ -357,7 +357,6 @@ void main() {
       expect(output, contains('Future<void> delete(String id)'));
     });
   });
-  });
 
   group('ProjectUtils', () {
     test('validates isNeuronProject returns false for non-project directory',

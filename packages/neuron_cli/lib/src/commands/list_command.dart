@@ -7,15 +7,17 @@ import 'package:path/path.dart' as path;
 
 /// Command to list all registered components in the project
 class ListCommand extends Command<int> {
-  ListCommand({required Logger logger}) : _logger = logger {
-    addSubcommand(ListScreensCommand(logger: _logger));
-    addSubcommand(ListControllersCommand(logger: _logger));
-    addSubcommand(ListServicesCommand(logger: _logger));
-    addSubcommand(ListModelsCommand(logger: _logger));
-    addSubcommand(ListRoutesCommand(logger: _logger));
-  }
+  ListCommand({required Logger logger}) : _logger = logger;
 
   final Logger _logger;
+
+  static const _validTypes = [
+    'screens',
+    'controllers',
+    'services',
+    'models',
+    'routes',
+  ];
 
   @override
   String get name => 'list';
@@ -27,14 +29,27 @@ class ListCommand extends Command<int> {
   String get description => 'List registered components in the project';
 
   @override
+  String get invocation => 'neuron list [type]';
+
+  @override
   Future<int> run() async {
-    // Default: show everything
+    final rest = argResults?.rest ?? [];
+    final type = rest.isEmpty ? null : rest.first;
+
+    if (type != null && !_validTypes.contains(type)) {
+      _logger.err('Unknown type "$type".');
+      _logger.info('Valid types: ${_validTypes.join(', ')}');
+      return ExitCode.usage.code;
+    }
+
     _logger.info('');
-    await _showScreens();
-    await _showControllers();
-    await _showServices();
-    await _showModels();
-    await _showRoutes();
+
+    if (type == null || type == 'screens') await _showScreens();
+    if (type == null || type == 'controllers') await _showControllers();
+    if (type == null || type == 'services') await _showServices();
+    if (type == null || type == 'models') await _showModels();
+    if (type == null || type == 'routes') await _showRoutes();
+
     return ExitCode.success.code;
   }
 
@@ -175,87 +190,5 @@ class ListCommand extends Command<int> {
       _logger.warn('Could not parse .routes.json: $e');
     }
     _logger.info('');
-  }
-}
-
-// ─── Individual subcommands ─────────────────────────────────────────────────
-
-class ListScreensCommand extends Command<int> {
-  ListScreensCommand({required Logger logger});
-
-  @override
-  String get name => 'screens';
-  @override
-  String get description => 'List all screen modules';
-
-  @override
-  Future<int> run() async {
-    final parent = this.parent as ListCommand;
-    await parent._showScreens();
-    return ExitCode.success.code;
-  }
-}
-
-class ListControllersCommand extends Command<int> {
-  ListControllersCommand({required Logger logger});
-
-  @override
-  String get name => 'controllers';
-  @override
-  String get description => 'List all standalone controllers';
-
-  @override
-  Future<int> run() async {
-    final parent = this.parent as ListCommand;
-    await parent._showControllers();
-    return ExitCode.success.code;
-  }
-}
-
-class ListServicesCommand extends Command<int> {
-  ListServicesCommand({required Logger logger});
-
-  @override
-  String get name => 'services';
-  @override
-  String get description => 'List all services';
-
-  @override
-  Future<int> run() async {
-    final parent = this.parent as ListCommand;
-    await parent._showServices();
-    return ExitCode.success.code;
-  }
-}
-
-class ListModelsCommand extends Command<int> {
-  ListModelsCommand({required Logger logger});
-
-  @override
-  String get name => 'models';
-  @override
-  String get description => 'List all models';
-
-  @override
-  Future<int> run() async {
-    final parent = this.parent as ListCommand;
-    await parent._showModels();
-    return ExitCode.success.code;
-  }
-}
-
-class ListRoutesCommand extends Command<int> {
-  ListRoutesCommand({required Logger logger});
-
-  @override
-  String get name => 'routes';
-  @override
-  String get description => 'List all registered routes';
-
-  @override
-  Future<int> run() async {
-    final parent = this.parent as ListCommand;
-    await parent._showRoutes();
-    return ExitCode.success.code;
   }
 }
