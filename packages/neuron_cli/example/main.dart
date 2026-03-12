@@ -8,6 +8,7 @@ void main() {
   
   // Generate a new screen:
   // neuron generate screen home
-  
-  print('See README.md for comprehensive usage instructions.');
+
+ 
+  //print('See README.md for comprehensive usage instructions.');
 }

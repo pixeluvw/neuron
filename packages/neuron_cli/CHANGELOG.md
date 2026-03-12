@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.3
+
+### New Commands
+- `neuron generate theme` — generate light/dark theme with `--color`, `--style` (material, minimal, glassmorphic), and `--with-controller` for runtime switching
+- `neuron language install <locale>` — install a language with ARB scaffold, pubspec updates, and supported locales wiring
+- `neuron language remove <locale>` — remove a language
+- `neuron language list` — list installed languages
+
+### Fixes
+- Suppressed `avoid_print` lint in example file
+
 ## 1.1.2
 
 - Fixed `list` command: replaced subcommand pattern with positional argument so `neuron list` works without arguments.
