@@ -5,6 +5,11 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-03-12
+
+### Added
+- **NeuronApp Localization Support**: Added `localizationsDelegates` and `supportedLocales` parameters to `NeuronApp`, forwarded to the internal `MaterialApp`.
+
 ## [1.5.0] - 2026-03-04
 
 ### Added

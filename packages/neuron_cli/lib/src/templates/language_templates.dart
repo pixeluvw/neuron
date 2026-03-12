@@ -175,7 +175,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';''';
   /// Localization delegates snippet
   static String localizationDelegates() {
     return '''
-      localizationsDelegates: const [
+      localizationsDelegates: [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

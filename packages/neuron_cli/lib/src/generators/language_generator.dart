@@ -144,9 +144,9 @@ class LanguageGenerator {
 
     if (content.contains('flutter_localizations:')) return;
 
-    // Add flutter_localizations dependency
+    // Add flutter_localizations dependency (match root-level dependencies: only)
     final updated = content.replaceFirst(
-      RegExp(r'(dependencies:\s*\n)'),
+      RegExp(r'^(dependencies:\s*\n)', multiLine: true),
       'dependencies:\n  flutter_localizations:\n    sdk: flutter\n',
     );
 
@@ -164,9 +164,9 @@ class LanguageGenerator {
 
     if (content.contains('generate: true')) return;
 
-    // Add generate: true under flutter section
+    // Add generate: true under flutter section (match root-level flutter: only)
     final updated = content.replaceFirst(
-      RegExp(r'(flutter:\s*\n)'),
+      RegExp(r'^(flutter:\s*\n)', multiLine: true),
       'flutter:\n  generate: true\n',
     );
 

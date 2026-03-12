@@ -1069,6 +1069,13 @@ class NeuronApp extends StatefulWidget {
   /// Middlewares to run before/after navigation.
   final List<NeuronNavigationMiddleware> middlewares;
 
+  /// Internationalized apps that require translations and locale-aware
+  /// formatting need to set this together with [supportedLocales].
+  final Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates;
+
+  /// The list of locales that this application supports.
+  final Iterable<Locale>? supportedLocales;
+
   const NeuronApp({
     super.key,
     this.home,
@@ -1082,6 +1089,8 @@ class NeuronApp extends StatefulWidget {
     this.onUnknownRoute,
     this.debugShowCheckedModeBanner = false,
     this.middlewares = const [],
+    this.localizationsDelegates,
+    this.supportedLocales,
   });
 
   @override
@@ -1119,6 +1128,9 @@ class _NeuronAppState extends State<NeuronApp> {
       onGenerateRoute: widget.onGenerateRoute ?? _generateRoute,
       onUnknownRoute: widget.onUnknownRoute,
       debugShowCheckedModeBanner: widget.debugShowCheckedModeBanner,
+      localizationsDelegates: widget.localizationsDelegates,
+      supportedLocales:
+          widget.supportedLocales ?? const [Locale('en', '')],
     );
   }
 

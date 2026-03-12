@@ -47,17 +47,20 @@ class ProjectUtils {
 
     try {
       final content = await pubspecFile.readAsString();
-      final yaml = loadYaml(content) as YamlMap;
+      final yaml = loadYaml(content);
+      if (yaml is! YamlMap) return false;
 
       // Check for flutter dependency
-      final dependencies = yaml['dependencies'] as YamlMap?;
-      if (dependencies == null) return false;
+      final dependencies = yaml['dependencies'];
+      if (dependencies is! YamlMap) return false;
 
       // Must have flutter
       if (!dependencies.containsKey('flutter')) return false;
 
       // Should have neuron (or we'll add it)
       return true;
+    } on YamlException {
+      rethrow;
     } catch (e) {
       return false;
     }

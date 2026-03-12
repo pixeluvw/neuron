@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.5
+
+### Fixed
+- Fixed `_ensureGenerateFlag` and `_ensureLocalizationDependency` regex to match only root-level YAML keys, preventing pubspec.yaml corruption.
+- Removed `const` from generated `localizationsDelegates` list to avoid `non_constant_list_element` error.
+- `isNeuronProject()` now rethrows `YamlException` instead of silently returning `false`, giving users the actual parse error.
+
 ## 1.1.4
 
 - Updated README with documentation for `generate theme` and `language` commands.
