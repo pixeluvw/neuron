@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.4
+
+- Updated README with documentation for `generate theme` and `language` commands.
+
 ## 1.1.3
 
 ### New Commands

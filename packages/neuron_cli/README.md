@@ -21,6 +21,10 @@ dart pub global activate neuron_cli
 | `neuron generate widget <name>` | `g w` | Reusable widget (with `--signal`) |
 | `neuron generate middleware <name>` | `g mw` | Signal middleware |
 | `neuron generate page <name>` | `g p` | Full-stack page (controller + view + service) |
+| `neuron generate theme` | `g t` | Light/dark theme (material, minimal, glassmorphic) |
+| `neuron language install <locale>` | `lang add` | Install a language (ARB + config) |
+| `neuron language remove <locale>` | `lang remove` | Remove a language |
+| `neuron language list` | `lang list` | List installed languages |
 | `neuron remove screen <name>` | `r s` | Remove screen & clean up routes/DI |
 | `neuron remove controller <name>` | `r c` | Remove controller & clean up DI |
 | `neuron remove model <name>` | `r m` | Remove model file |
@@ -133,6 +137,56 @@ Creates a **complete module** with:
 - **Service** — CRUD stubs ready for your data source
 
 All registered in routes and DI automatically.
+
+### Theme
+
+```bash
+neuron g t                                       # material theme, indigo
+neuron g t --color blue --style minimal           # minimal theme, blue seed
+neuron g t -c "#FF5722" -s glassmorphic --with-controller  # glassmorphic + runtime switching
+```
+
+Options:
+- `--color` / `-c` — seed color name or hex (default: `indigo`)
+- `--style` / `-s` — `material`, `minimal`, or `glassmorphic` (default: `material`)
+- `--with-controller` — generate `ThemeController` for runtime light/dark switching
+
+Creates `lib/app/theme.dart` (and optionally `lib/shared/controllers/theme_controller.dart`).
+
+Usage:
+```dart
+// In MaterialApp
+theme: AppTheme.light,
+darkTheme: AppTheme.dark,
+themeMode: ThemeMode.system,
+
+// With controller
+final tc = ThemeController.init;
+tc.toggleTheme();
+```
+
+---
+
+## Language / Localization
+
+```bash
+neuron language install es      # install Spanish
+neuron language install ja      # install Japanese
+neuron language list            # show installed languages
+neuron language remove es       # remove Spanish
+```
+
+Aliases: `neuron lang`, `neuron l10n`
+
+The `install` subcommand:
+1. Creates `l10n.yaml` at project root
+2. Creates `lib/l10n/app_en.arb` (English template) if missing
+3. Creates `lib/l10n/app_<locale>.arb` with placeholder translations
+4. Adds `flutter_localizations` dependency to `pubspec.yaml`
+5. Sets `generate: true` in the `flutter` section
+6. Updates `supportedLocales` in `main.dart`
+
+Locale codes use ISO 639-1 (e.g. `en`, `es`, `fr`, `de`, `ja`, `zh`, `pt_BR`).
 
 ---
 
