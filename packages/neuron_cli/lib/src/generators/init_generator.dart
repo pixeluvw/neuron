@@ -40,6 +40,9 @@ class InitGenerator {
 
     // 5. Generate initial routes and DI
     await _generateRoutesAndDi();
+
+    // 6. Overwrite default widget_test.dart with Neuron-compatible test
+    await _generateWidgetTest();
   }
 
   /// Parse existing pubspec.yaml and rewrite it with neuron dependency added
@@ -232,5 +235,18 @@ class InitGenerator {
     } finally {
       Directory.current = savedDir;
     }
+  }
+
+  /// Overwrite the default widget_test.dart with Neuron-compatible test
+  Future<void> _generateWidgetTest() async {
+    final testDir = path.join(projectPath, 'test');
+    await Directory(testDir).create(recursive: true);
+
+    final testFile = File(path.join(testDir, 'widget_test.dart'));
+    await testFile.writeAsString(
+      isEmpty
+          ? ProjectTemplates.widgetTestDartEmpty(projectName)
+          : ProjectTemplates.widgetTestDart(projectName),
+    );
   }
 }

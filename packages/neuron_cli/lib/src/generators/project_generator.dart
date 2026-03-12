@@ -51,6 +51,9 @@ class ProjectGenerator {
 
     // Generate initial files
     await _generateInitialFiles();
+
+    // Overwrite default widget_test.dart with Neuron-compatible test
+    await _generateWidgetTest();
   }
 
   Future<void> _generateCleanPubspec() async {
@@ -158,5 +161,17 @@ flutter:
         Directory.current = savedDir;
       }
     }
+  }
+
+  Future<void> _generateWidgetTest() async {
+    final testDir = path.join(projectPath, 'test');
+    await Directory(testDir).create(recursive: true);
+
+    final testFile = File(path.join(testDir, 'widget_test.dart'));
+    await testFile.writeAsString(
+      isEmpty
+          ? ProjectTemplates.widgetTestDartEmpty(projectName)
+          : ProjectTemplates.widgetTestDart(projectName),
+    );
   }
 }

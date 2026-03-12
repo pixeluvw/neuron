@@ -155,4 +155,71 @@ class HomeView extends StatelessWidget {
 }
 ''';
   }
+
+  /// Widget test template that matches the generated NeuronApp structure
+  static String widgetTestDart(String projectName) {
+    return '''
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:neuron/neuron.dart';
+
+import 'package:$projectName/di/injector.dart';
+import 'package:$projectName/routes/app_routes.dart';
+
+void main() {
+  testWidgets('App should launch without errors', (WidgetTester tester) async {
+    setupDependencies();
+
+    await tester.pumpWidget(
+      NeuronApp(
+        title: '$projectName',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        routes: appRoutes,
+        initialRoute: '/',
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify the app renders successfully
+    expect(find.byType(MaterialApp), findsOneWidget);
+  });
+}
+''';
+  }
+
+  /// Minimal widget test for --empty projects
+  static String widgetTestDartEmpty(String projectName) {
+    return '''
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:neuron/neuron.dart';
+
+import 'package:$projectName/di/injector.dart';
+import 'package:$projectName/routes/app_routes.dart';
+
+void main() {
+  testWidgets('App should launch without errors', (WidgetTester tester) async {
+    setupDependencies();
+
+    await tester.pumpWidget(
+      NeuronApp(
+        title: '$projectName',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        routes: appRoutes,
+        initialRoute: '/',
+      ),
+    );
+
+    await tester.pumpAndSettle();
+  });
+}
+''';
+  }
 }

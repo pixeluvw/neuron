@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.6
+
+### New Features
+- **Full OS-level language switching**: `neuron language install` now generates a `LocaleController` with `Signal<Locale>` persisted via `shared_preferences`. Changing the locale rebuilds the entire app — like switching the system language on Linux/Windows/macOS.
+- **Comprehensive translations**: ARB files now include 40+ keys per locale (navigation, auth, feedback, settings) so the whole UI translates, not just a handful of words.
+- **Language picker screen**: Auto-generated `LanguageView` at `lib/modules/language/` lists installed locales with native names. Tap to switch instantly.
+- **Locale-aware main.dart**: `main.dart` is rewritten with a `Slot<Locale>` wrapping `NeuronApp` so locale changes propagate app-wide.
+- **Neuron-compatible widget test**: `neuron create` and `neuron init` now overwrite the default `test/widget_test.dart` with a test that imports Neuron's DI and routes, eliminating broken-test errors.
+
+### Fixed
+- Fixed ARB `@`-metadata entries output as strings instead of JSON objects (caused `flutter gen-l10n` to fail).
+- Added `shared_preferences` auto-dependency when installing languages.
+
 ## 1.1.5
 
 ### Fixed
