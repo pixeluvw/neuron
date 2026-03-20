@@ -51,7 +51,15 @@ import 'neuron_atom.dart';
 /// A sealed class representing the state of an async operation.
 ///
 /// This is a pure Dart alternative to Flutter's `AsyncSnapshot`, enabling
-/// business logic to remain framework-agnostic.
+/// business logic to remain framework-agnostic and easily testable.
+///
+/// ## States
+///
+/// | State | Description | Properties |
+/// |-------|-------------|------------|
+/// | `AsyncLoading` | Operation in progress | None |
+/// | `AsyncData` | Operation completed | `value` |
+/// | `AsyncError` | Operation failed | `error`, `stackTrace` |
 ///
 /// ## Pattern Matching (Dart 3.0+)
 ///
@@ -65,6 +73,28 @@ import 'neuron_atom.dart';
 ///   case AsyncError(:final error):
 ///     return Text('Error: $error');
 /// }
+/// ```
+///
+/// ## Using `when()` for Exhaustive Handling
+///
+/// ```dart
+/// final widget = state.when(
+///   loading: () => CircularProgressIndicator(),
+///   data: (value) => Text('Data: $value'),
+///   onError: (error, stack) => Text('Error: $error'),
+/// );
+/// ```
+///
+/// ## Checking State
+///
+/// ```dart
+/// if (state.isLoading) { ... }
+/// if (state.hasData) { ... }
+/// if (state.hasError) { ... }
+///
+/// // Access values (nullable)
+/// final data = state.dataOrNull;
+/// final error = state.errorOrNull;
 /// ```
 sealed class AsyncState<T> {
   const AsyncState();
@@ -690,6 +720,7 @@ class Computed<T> extends NeuronAtom<T> {
   // Dependency management
   Set<NeuronAtom> _dependencies = {};
   bool _isSubscribed = false;
+  final Map<NeuronAtom, AtomListener> _dependencyListeners = {};
 
   /// Creates a computed signal with automatic dependency tracking.
   ///
@@ -838,34 +869,36 @@ class Computed<T> extends NeuronAtom<T> {
     }
   }
 
-  AtomListener? _listenerHandle;
-
   void _subscribeAll() {
     if (_isSubscribed) return;
     for (final dep in _dependencies) {
-      _listenerHandle = dep.addListener(_markStale);
+      _dependencyListeners[dep] = dep.addListener(_markStale);
     }
     _isSubscribed = true;
   }
 
   void _unsubscribeAll() {
     if (!_isSubscribed) return;
-    for (final dep in _dependencies) {
-      dep.removeListener(_listenerHandle!);
+    for (final entry in _dependencyListeners.entries) {
+      entry.key.removeListener(entry.value);
     }
+    _dependencyListeners.clear();
     _isSubscribed = false;
   }
 
   void _updateSubscriptions(Set<NeuronAtom> newDependencies) {
     if (!_isSubscribed) return;
+    // Remove listeners for dependencies no longer present
     for (final dep in _dependencies) {
       if (!newDependencies.contains(dep)) {
-        dep.removeListener(_listenerHandle!);
+        final listener = _dependencyListeners.remove(dep);
+        dep.removeListener(listener!);
       }
     }
+    // Add listeners for new dependencies
     for (final dep in newDependencies) {
       if (!_dependencies.contains(dep)) {
-        _listenerHandle = dep.addListener(_markStale);
+        _dependencyListeners[dep] = dep.addListener(_markStale);
       }
     }
   }
@@ -889,10 +922,6 @@ class Computed<T> extends NeuronAtom<T> {
   }
 
   static bool _setEquals<E>(Set<E> a, Set<E> b) {
-    if (a.length != b.length) return false;
-    for (final e in a) {
-      if (!b.contains(e)) return false;
-    }
-    return true;
+    return a.length == b.length && a.containsAll(b);
   }
 }

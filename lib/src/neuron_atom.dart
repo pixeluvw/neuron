@@ -58,8 +58,20 @@ import 'package:meta/meta.dart';
 /// A zero-cost abstraction for a listener handle.
 ///
 /// In Dart 3, this `extension type` completely disappears at runtime.
-/// It wraps a standard `VoidCallback` but adds a generic `.cancel()` wrapper
-/// method, avoiding the creation of an explicit closure allocation in `subscribe`.
+/// It wraps a standard `VoidCallback` but provides type safety and clearer
+/// semantics for listener management in the Neuron reactive system.
+///
+/// ## Usage
+///
+/// ```dart
+/// final atom = NeuronAtom<int>(0);
+/// final listener = atom.addListener(() => print('Changed: ${atom.value}'));
+/// // ... later
+/// atom.removeListener(listener);
+/// ```
+///
+/// **Performance**: Extension types have zero runtime overhead compared to
+/// raw function references.
 extension type AtomListener(VoidCallback _call) {
   /// Invokes the underlying listener.
   void invoke() => _call();
@@ -145,9 +157,30 @@ void _defaultErrorHandler(
 /// BATCH SCOPE
 /// ═══════════════════════════════════════════════════════════════════════════════
 ///
-/// Enables deferred notification: during a batch, atoms collect into a pending
-/// set instead of immediately notifying listeners.  When the batch ends, each
-/// atom is notified exactly once regardless of how many times it was updated.
+/// Enables deferred notification for efficient batch updates.
+///
+/// During a batch, atoms collect into a pending set instead of immediately
+/// notifying listeners. When the batch ends, each atom is notified exactly
+/// once regardless of how many times it was updated.
+///
+/// ## Performance Benefits
+///
+/// Without batching, updating 3 signals would trigger 3 separate UI rebuilds.
+/// With batching, all updates are coalesced into a single rebuild.
+///
+/// ## Usage
+///
+/// ```dart
+/// NeuronBatch.run(() {
+///   name.emit('Alice');
+///   age.emit(30);
+///   email.emit('alice@example.com');
+/// });
+/// // All 3 listeners fire here, once each
+/// ```
+///
+/// **Note**: Batches are reentrant - calling `run()` inside an existing batch
+/// simply extends the current batch scope.
 class NeuronBatch {
   static bool _isBatching = false;
   static final Set<NeuronAtom<dynamic>> _pending = {};
@@ -206,8 +239,42 @@ class NeuronBatch {
 /// ATOM POOLING / ARENA ALLOCATION
 /// ═══════════════════════════════════════════════════════════════════════════════
 ///
-/// An object pool for recycling standard [NeuronAtom] instances to avoid GC thrashing
-/// and constructor allocation penalties when rapid instantiations occur (e.g., inside Lists).
+/// An object pool for recycling standard [NeuronAtom] instances.
+///
+/// NeuronAtomPool implements an arena allocation pattern to avoid GC thrashing
+/// and constructor allocation penalties when rapid instantiations occur
+/// (e.g., inside lists, loops, or frequently rebuilt widgets).
+///
+/// ## How It Works
+///
+/// 1. When a [NeuronAtom] is disposed, it's returned to the pool instead of
+///    being garbage collected
+/// 2. When a new atom is needed, the pool provides a recycled instance
+/// 3. Pooled atoms are reset to clean state before reuse
+///
+/// ## Performance Benefits
+///
+/// - Reduces GC pressure during mass UI updates
+/// - Eliminates constructor overhead for standard atoms
+/// - Provides O(1) atom acquisition from pool
+///
+/// ## Usage
+///
+/// Atoms are automatically pooled when disposed. Manual usage:
+///
+/// ```dart
+/// // Obtain from pool (or create new if pool empty)
+/// final atom = NeuronAtomPool.obtain<int>(initialValue: 0);
+///
+/// // Use atom...
+/// atom.value = 42;
+///
+/// // Return to pool (automatic if runtimeType == NeuronAtom)
+/// NeuronAtomPool.release(atom);
+/// ```
+///
+/// **Note**: Only standard [NeuronAtom] instances are pooled. Subclasses
+/// like [Signal], [AsyncSignal], and [Computed] are NOT pooled.
 class NeuronAtomPool {
   static final Map<Type, List<NeuronAtom<dynamic>>> _pool = {};
   static const int _maxPoolSizePerType = 128;
@@ -246,13 +313,16 @@ class NeuronAtomPool {
 ///
 /// ## Core Features
 ///
-/// - **Value observation**: Listeners are notified when value changes
-/// - **Equality checking**: Custom equality to control when listeners fire
-/// - **Value guards**: Transform or validate values before emission
-/// - **Initial value**: Access original value via [initialValue]
-/// - **Previous value**: Track changes via [previousValue]
-/// - **Lifecycle hooks**: [onActive] and [onInactive] for resource management
-/// - **RAII Finalizer**: Automatically calls [dispose] if an atom is garbage collected
+/// | Feature | Description |
+/// |---------|-------------|
+/// | Value observation | Listeners notified when value changes |
+/// | Equality checking | Custom equality controls notification |
+/// | Value guards | Transform/validate before emission |
+/// | Initial value | Access via [initialValue] |
+/// | Previous value | Track changes via [previousValue] |
+/// | Lifecycle hooks | [onActive]/[onInactive] for resources |
+/// | RAII Finalizer | Auto-dispose on GC |
+/// | Object pooling | Recycling for performance |
 ///
 /// ## Basic Usage
 ///
@@ -304,13 +374,42 @@ class NeuronAtomPool {
 /// final nameOnly = user.select((u) => u.name);  // Only fires on name change
 /// ```
 ///
+/// ## Lifecycle Hooks
+///
+/// Override [onActive] and [onInactive] for resource management:
+///
+/// ```dart
+/// class ResourceAtom<T> extends NeuronAtom<T> {
+///   StreamSubscription? _subscription;
+///
+///   @override
+///   void onActive() {
+///     super.onActive();
+///     _subscription = stream.listen((v) => value = v);
+///   }
+///
+///   @override
+///   void onInactive() {
+///     _subscription?.cancel();
+///     super.onInactive();
+///   }
+/// }
+/// ```
+///
 /// **Note**: For most use cases, use [Signal<T>] instead, which extends
 /// [NeuronAtom] with stream support and controller binding.
+///
+/// ## Performance Considerations
+///
+/// - Uses bitmask state packing for minimal memory footprint
+/// - Extension type for listeners eliminates closure allocations
+/// - Object pooling reduces GC pressure for frequently created atoms
 ///
 /// See also:
 /// - [Signal] - Preferred reactive value with stream support
 /// - [AsyncSignal] - For async operations
 /// - [Computed] - For derived values
+/// - [NeuronAtomPool] - Object pooling for performance
 class NeuronAtom<T> implements Disposable {
   static final Finalizer<VoidCallback> _finalizer =
       Finalizer<VoidCallback>((callback) => callback());
@@ -523,9 +622,10 @@ class NeuronAtom<T> implements Disposable {
       // If modified, switch to safe copy-based iteration for remaining listeners
       if (listenersModified) {
         final remaining = List<AtomListener>.from(_listeners.skip(i));
+        final currentSet = Set<AtomListener>.from(_listeners);
         for (final listener in remaining) {
           try {
-            if (_listeners.contains(listener)) {
+            if (currentSet.contains(listener)) {
               listener.invoke();
             }
           } catch (e, st) {

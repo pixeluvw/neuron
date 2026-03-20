@@ -5,8 +5,8 @@
 Neuron is a powerful, elegant reactive state management solution built around the Signal/Slot pattern. Designed for simplicity, performance, and exceptional developer experience.
 
 [![Pub](https://img.shields.io/pub/v/neuron.svg)](https://pub.dev/packages/neuron)
-[![Tests](https://img.shields.io/badge/tests-86%20passing-brightgreen)](test/)
-[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/tests-214%20passing-brightgreen)](test/)
+[![Coverage](https://img.shields.io/badge/coverage-40%25-yellow)](test/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![style: flutter_lints](https://img.shields.io/badge/style-flutter__lints-blue)](https://pub.dev/packages/flutter_lints)
 

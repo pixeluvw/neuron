@@ -5,6 +5,29 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-03-20
+
+### Documentation
+
+- **Enhanced API Documentation**: Improved inline Dart documentation across core modules with:
+  - Expanded usage examples for `NeuronAtom`, `NeuronBatch`, and `NeuronAtomPool`
+  - Added performance consideration notes
+  - Added lifecycle hook examples
+  - Improved parameter documentation with tables for feature summaries
+- **Code Examples**: Added more practical code snippets demonstrating:
+  - Custom equality usage patterns
+  - Value guard implementation
+  - Selective listening with `select()`
+  - Resource management with lifecycle hooks
+  - Batch updates for performance optimization
+
+### Fixed
+
+- **Computed signal listener management**: Fixed memory leak where computed signals only stored a single listener handle, causing stale subscriptions and missed updates. Now each dependency has its own listener handle.
+- **Listener notification performance**: Optimized `notifyListeners` to use O(1) set lookups instead of O(n²) containment checks when listeners are modified during iteration.
+- **Set equality check**: Replaced manual iteration with `Set.containsAll` for clarity and minor performance improvement.
+- **Updated badges**: Corrected test count (214 passing) and coverage (40%) badges in README.
+
 ## [1.5.1] - 2026-03-12
 
 ### Added
