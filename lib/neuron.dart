@@ -96,6 +96,8 @@
 /// | `ListSignal<E>`   | Reactive list with mutation methods            |
 /// | `MapSignal<K,V>`  | Reactive map                                   |
 /// | `SetSignal<E>`    | Reactive set                                   |
+/// | `PollingSignal<T>`| Periodic async refresh with timer control      |
+/// | `TextSignal`      | Two-way TextEditingController ↔ Signal sync    |
 /// | `UndoableSignal`  | Undo/redo support                              |
 /// | `FormSignal<T>`   | Form fields with validation                    |
 ///

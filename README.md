@@ -5,7 +5,7 @@
 Neuron is a powerful, elegant reactive state management solution built around the Signal/Slot pattern. Designed for simplicity, performance, and exceptional developer experience.
 
 [![Pub](https://img.shields.io/pub/v/neuron.svg)](https://pub.dev/packages/neuron)
-[![Tests](https://img.shields.io/badge/tests-214%20passing-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/tests-262%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-40%25-yellow)](test/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![style: flutter_lints](https://img.shields.io/badge/style-flutter__lints-blue)](https://pub.dev/packages/flutter_lints)
@@ -420,6 +420,42 @@ tags.clear();
 
 // Access
 tags.contains('flutter')
+```
+
+### PollingSignal&lt;T&gt; — Periodic Async Refresh
+
+Automatically re-executes an async operation on a timer. No manual `Timer` or `onClose()` cleanup needed.
+
+```dart
+class DashboardController extends NeuronController {
+  late final stats = pollingSignal<DashboardStats>(
+    interval: Duration(seconds: 30),
+    operation: () => api.fetchStats(),
+  );
+
+  // Runtime control
+  void onUserIdle()  => stats.pause();
+  void onUserActive() => stats.resume();
+  void setFastMode()  => stats.setInterval(Duration(seconds: 5));
+}
+```
+
+### TextSignal — Two-Way Text Field Binding
+
+A `Signal<String>` that stays in sync with a `TextEditingController`. No manual listeners or disposal.
+
+```dart
+class ProfileController extends NeuronController {
+  late final name = textSignal(text: 'John');
+  late final bio = textSignal();
+
+  // name.val        → current text
+  // name.controller → TextEditingController (for TextField)
+  // name.emit('x')  → updates both signal and controller
+}
+
+// In widget:
+TextField(controller: ctrl.name.controller)
 ```
 
 ---
@@ -2414,6 +2450,48 @@ Neuron.toNamed('/profile/123');
      ═══════════════════════════════════════════════════════════════════════════════ -->
 
 ## 🔧 Advanced Features
+
+### Tagged/Scoped Instances
+
+Run multiple instances of the same controller type, scoped by a key:
+
+```dart
+// Install tagged instances
+Neuron.ensure<ChatController>(() => ChatController(roomId), tag: roomId);
+
+// Retrieve by tag
+final chat = Neuron.use<ChatController>(tag: roomId);
+
+// Uninstall a specific instance
+Neuron.uninstall<ChatController>(tag: roomId);
+
+// Uninstall ALL instances of a type
+Neuron.uninstallAll<ChatController>();
+
+// List all instances (debugging / iteration)
+final all = Neuron.tagged<ChatController>(); // Map<String?, ChatController>
+```
+
+Default (untagged) behavior is unchanged — existing code works without modification.
+
+### Auto-Cleanup with register()
+
+Register any resource for automatic cleanup when the controller is disposed:
+
+```dart
+class ShipmentController extends NeuronController {
+  @override
+  void onInit() {
+    register(Timer.periodic(Duration(seconds: 30), (_) => fetch()));
+    register(someStream.listen(handleEvent));
+    register(TextEditingController());
+    register(() => customCleanup());   // VoidCallback escape hatch
+  }
+  // No onClose() override needed!
+}
+```
+
+Supports `Timer`, `StreamSubscription`, `ChangeNotifier`, `Disposable`, and `VoidCallback`. Resources are cleaned up in reverse order (LIFO).
 
 ### Middleware
 

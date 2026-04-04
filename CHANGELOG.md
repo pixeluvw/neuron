@@ -5,6 +5,26 @@ All notable changes to the Neuron package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-04-04
+
+### Added
+
+- **Tagged/Scoped Instances**: The `Neuron` service locator now supports an optional `tag` parameter on `install`, `use`, `ensure`, `isInstalled`, and `uninstall`, enabling multiple instances of the same controller type scoped to different keys.
+  - `Neuron.ensure<ChatCtrl>(() => ChatCtrl(roomId), tag: roomId)`
+  - `Neuron.use<ChatCtrl>(tag: roomId)`
+  - New `Neuron.uninstallAll<T>()` — disposes every instance of a type (all tags).
+  - New `Neuron.tagged<T>()` — returns `Map<String?, T>` of all registered instances.
+- **PollingSignal\<T\>**: A new signal that wraps `AsyncSignal<T>` with automatic `Timer.periodic` re-execution. Supports `start()`, `stop()`, `pause()`, `resume()`, and `setInterval()`. Timer auto-cancels on dispose.
+  - Factory: `pollingSignal<T>(interval: ..., operation: () => ...)` on controllers.
+- **Auto-Cleanup `register()`**: New `register<T>(T resource)` method on `NeuronController` that accepts `Timer`, `StreamSubscription`, `ChangeNotifier` (incl. `TextEditingController`), `Disposable`, or `VoidCallback` for automatic cleanup on controller dispose. Resources are disposed in reverse registration order (LIFO).
+- **TextSignal**: A `Signal<String>` that stays in bidirectional sync with a `TextEditingController`. Eliminates manual listener wiring and cleanup for text fields.
+  - Factory: `textSignal(text: '')` on controllers.
+  - Access: `email.val` (string), `email.controller` (for `TextField`), `email.emit('x')` (updates both).
+
+### Changed
+
+- Controller disposal now uses reverse (LIFO) order for `_disposables`, ensuring later-registered resources are cleaned up first.
+
 ## [1.5.2] - 2026-03-20
 
 ### Documentation
