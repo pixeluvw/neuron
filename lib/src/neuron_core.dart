@@ -50,6 +50,7 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -156,6 +157,18 @@ class _NeuronAtomBuilderState<T> extends State<NeuronAtomBuilder<T>> {
   }
 }
 
+/// Wraps an arbitrary cleanup action as a [Disposable].
+///
+/// Used by [NeuronController.register] to adapt resources like [Timer],
+/// [StreamSubscription], and [ChangeNotifier] into the disposal system.
+class _CleanupEntry implements Disposable {
+  final void Function() _cleanup;
+  _CleanupEntry(this._cleanup);
+
+  @override
+  void dispose() => _cleanup();
+}
+
 /// Helper class to dispose effects.
 class _EffectDisposer implements Disposable {
   final List<NeuronAtom> dependencies;
@@ -218,8 +231,11 @@ class _EffectDisposer implements Disposable {
 class Neuron {
   Neuron._(); // no instances
 
-  /// Internal registry of controllers keyed by their Type.
-  static final Map<Type, NeuronController> _registry = {};
+  /// Internal registry of controllers keyed by (Type, tag).
+  ///
+  /// The outer map is keyed by Type. The inner map is keyed by an optional
+  /// tag string (`null` = default singleton, matching pre-tag behavior).
+  static final Map<Type, Map<String?, NeuronController>> _registry = {};
 
   /// Global navigator key for context-less navigation.
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -243,8 +259,9 @@ class Neuron {
   /// See also:
   /// - [ensure] - Preferred method that creates and registers if needed
   /// - [use] - Get an already installed controller
-  static T install<T extends NeuronController>(T controller) {
-    _registry[T] = controller;
+  static T install<T extends NeuronController>(T controller, {String? tag}) {
+    _registry.putIfAbsent(T, () => {});
+    _registry[T]![tag] = controller;
     controller.onInit();
     return controller;
   }
@@ -266,19 +283,23 @@ class Neuron {
   /// See also:
   /// - [ensure] - Get or create a controller
   /// - [isInstalled] - Check if a controller exists
-  static T use<T extends NeuronController>() {
-    if (!_registry.containsKey(T)) {
+  static T use<T extends NeuronController>({String? tag}) {
+    final bucket = _registry[T];
+    if (bucket == null || !bucket.containsKey(tag)) {
       throw Exception(
-        "Neuron Error: $T not installed. "
+        "Neuron Error: $T${tag != null ? ' (tag: $tag)' : ''} not installed. "
         "Use Neuron.ensure<$T>(() => ...) before calling use().",
       );
     }
-    return _registry[T] as T;
+    return bucket[tag] as T;
   }
 
   /// Returns true if a controller of type [T] is already registered.
-  static bool isInstalled<T extends NeuronController>() {
-    return _registry.containsKey(T);
+  ///
+  /// When [tag] is provided, checks for a specific tagged instance.
+  static bool isInstalled<T extends NeuronController>({String? tag}) {
+    final bucket = _registry[T];
+    return bucket != null && bucket.containsKey(tag);
   }
 
   /// Returns an existing controller of type [T] if present.
@@ -317,26 +338,53 @@ class Neuron {
   /// See also:
   /// - [use] - Get an already installed controller (throws if not found)
   /// - [install] - Manually register a controller
-  static T ensure<T extends NeuronController>(T Function() factory) {
-    if (_registry.containsKey(T)) {
-      return _registry[T] as T;
+  static T ensure<T extends NeuronController>(T Function() factory,
+      {String? tag}) {
+    final bucket = _registry[T];
+    if (bucket != null && bucket.containsKey(tag)) {
+      return bucket[tag] as T;
     }
-    return install<T>(factory());
+    return install<T>(factory(), tag: tag);
   }
 
   /// Disposes and removes a controller of type [T] if present.
-  static void uninstall<T extends NeuronController>() {
-    if (_registry.containsKey(T)) {
-      final controller = _registry[T]!;
-      controller.dispose();
-      _registry.remove(T);
+  ///
+  /// When [tag] is provided, removes only that tagged instance.
+  static void uninstall<T extends NeuronController>({String? tag}) {
+    final bucket = _registry[T];
+    if (bucket != null && bucket.containsKey(tag)) {
+      bucket[tag]!.dispose();
+      bucket.remove(tag);
+      if (bucket.isEmpty) _registry.remove(T);
     }
+  }
+
+  /// Disposes and removes **all** instances of type [T] (all tags).
+  static void uninstallAll<T extends NeuronController>() {
+    final bucket = _registry.remove(T);
+    if (bucket != null) {
+      for (final controller in bucket.values) {
+        controller.dispose();
+      }
+    }
+  }
+
+  /// Returns all registered instances of type [T], keyed by tag.
+  ///
+  /// The default (untagged) instance has a `null` key.
+  /// Useful for debugging or iterating over all instances of a type.
+  static Map<String?, T> tagged<T extends NeuronController>() {
+    final bucket = _registry[T];
+    if (bucket == null) return {};
+    return Map<String?, T>.from(bucket);
   }
 
   /// Clears all registered controllers and disposes them.
   static void clearAll() {
-    for (final controller in _registry.values) {
-      controller.dispose();
+    for (final bucket in _registry.values) {
+      for (final controller in bucket.values) {
+        controller.dispose();
+      }
     }
     _registry.clear();
   }
@@ -524,6 +572,47 @@ abstract class NeuronController {
   /// Internal helper to register a notifier for disposal.
   void _autoDispose(Disposable n) => _disposables.add(n);
 
+  /// Registers a resource for automatic cleanup when the controller is disposed.
+  ///
+  /// Supports common Flutter/Dart resource types:
+  /// - [Disposable] — disposed via `dispose()`
+  /// - [Timer] — cancelled via `cancel()`
+  /// - [StreamSubscription] — cancelled via `cancel()`
+  /// - [ChangeNotifier] (includes [TextEditingController]) — disposed via `dispose()`
+  /// - [VoidCallback] — called directly as a cleanup function
+  ///
+  /// Resources are cleaned up in reverse registration order (LIFO).
+  ///
+  /// Returns the resource for inline usage:
+  /// ```dart
+  /// final timer = register(Timer.periodic(Duration(seconds: 1), (_) => tick()));
+  /// final sub = register(stream.listen(handleEvent));
+  /// register(TextEditingController());
+  /// register(() => customCleanup());
+  /// ```
+  T register<T>(T resource) {
+    final Disposable entry;
+    if (resource is Disposable) {
+      entry = resource;
+    } else if (resource is Timer) {
+      entry = _CleanupEntry(() => (resource as Timer).cancel());
+    } else if (resource is StreamSubscription) {
+      entry = _CleanupEntry(() => (resource as StreamSubscription).cancel());
+    } else if (resource is ChangeNotifier) {
+      entry = _CleanupEntry(() => (resource as ChangeNotifier).dispose());
+    } else if (resource is VoidCallback) {
+      entry = _CleanupEntry(resource as VoidCallback);
+    } else {
+      throw ArgumentError(
+        'Cannot register resource of type ${resource.runtimeType}. '
+        'Supported: Timer, StreamSubscription, ChangeNotifier, Disposable, VoidCallback. '
+        'For other types, use a VoidCallback: register(() => resource.cleanup())',
+      );
+    }
+    _disposables.add(entry);
+    return resource;
+  }
+
   /// Run a side effect whenever dependencies change.
   ///
   /// The effect runs immediately and whenever any dependency changes.
@@ -568,11 +657,15 @@ abstract class NeuronController {
   }
 
   /// Disposes all registered notifiers and calls [onClose].
+  ///
+  /// Resources are disposed in reverse registration order (LIFO),
+  /// ensuring that later resources (which may depend on earlier ones)
+  /// are cleaned up first.
   @nonVirtual
   void dispose() {
     onClose();
-    for (final d in _disposables) {
-      d.dispose();
+    for (int i = _disposables.length - 1; i >= 0; i--) {
+      _disposables[i].dispose();
     }
     _disposables.clear();
   }

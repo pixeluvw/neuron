@@ -57,3 +57,5 @@ part 'neuron_advanced.dart';
 part 'neuron_slot_effects.dart';
 part 'neuron_animated_slots.dart';
 part 'neuron_multi_slot.dart';
+part 'neuron_polling.dart';
+part 'neuron_text_signal.dart';
