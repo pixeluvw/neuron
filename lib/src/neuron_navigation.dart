@@ -917,7 +917,7 @@ class NeuronTransitions {
           alignment: spec.alignment,
           child: SizeTransition(
             sizeFactor: animation,
-            axisAlignment: -1,
+            alignment: Alignment.topCenter,
             child: child,
           ),
         );
